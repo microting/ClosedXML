@@ -49,6 +49,7 @@
   <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="2.16.0" />
     <PackageReference Include="ExcelNumberFormat" Version="1.1.0" />
+<<<<<<< HEAD
     <PackageReference Include="Fody" Version="6.3.0">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -62,5 +63,11 @@
     <PackageReference Include="System.IO.Packaging" Version="6.0.0" />
     <PackageReference Include="System.Memory" Version="4.5.4" />
     <PackageReference Include="XLParser" Version="1.5.2" />
+=======
+
+    <!-- SourceLink , see https://github.com/ctaggart/SourceLink -->
+    <PackageReference Include="SourceLink.Copy.PdbFiles" Version="2.8.3" PrivateAssets="All" />
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+>>>>>>> d20e8916 (Bump Microsoft.SourceLink.GitHub from 1.0.0 to 1.1.1)
   </ItemGroup>
 </Project>
