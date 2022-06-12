@@ -1,0 +1,28 @@
+name: .NET Pull requests
+
+on:
+  pull_request:
+    branches: [ master, develop ]
+
+jobs:
+  build:
+    runs-on: Windows-2019
+    steps:
+    - uses: actions/checkout@v2
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.x
+    - name: Restore dependencies
+      run:  |
+        dotnet nuget locals all --clear
+        dotnet restore
+    - name: Install dependencies
+      run: dotnet restore
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -d "v" -f 2)
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+    - name: Unit Tests
+      run: dotnet test --no-restore -c Release -v n ClosedXML.Tests/ClosedXML.Tests.csproj
