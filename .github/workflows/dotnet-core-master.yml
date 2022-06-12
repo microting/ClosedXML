@@ -25,4 +25,4 @@ jobs:
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Unit Tests
-      run: dotnet test --no-restore -c Release -v n ClosedXML.Tests/ClosedXML.Tests.csproj
+      run: dotnet test --no-restore -c Release -v n ClosedXML_Tests/ClosedXML_Tests.csproj
