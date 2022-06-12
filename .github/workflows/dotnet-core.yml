@@ -19,10 +19,12 @@ jobs:
     - name: Get the version
       id: get_version
       run: echo ::set-output name=VERSION::$(echo $GITHUB_REF | cut -d / -f 3 | cut -d "v" -f 2)
+    - name: Echo the VERSION
+      run: echo ${{ steps.get_version.outputs.VERSION }}
     - name: Build
       run: dotnet build --configuration Release --no-restore
     - name: Unit Tests
-      run: dotnet test --no-restore -c Release -v n ClosedXML.Tests/ClosedXML.Tests.csproj
+      run: dotnet test --no-restore -c Release -v n ClosedXML_Tests/ClosedXML_Tests.csproj
     - name: Pack
       run: dotnet pack ClosedXML.sln -c Release -o ./artifacts -p:PackageVersion=${{ steps.get_version.outputs.VERSION }}
     - name: Push generated package to GitHub registry
