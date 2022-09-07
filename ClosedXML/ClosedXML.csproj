@@ -64,7 +64,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DocumentFormat.OpenXml" Version="2.16.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.18.0" />
     <PackageReference Include="ExcelNumberFormat" Version="1.1.0" />
 <<<<<<< HEAD
     <PackageReference Include="Fody" Version="6.3.0">
