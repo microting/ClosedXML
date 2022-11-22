@@ -4,7 +4,6 @@ using ClosedXML.Excel.Drawings;
 using ClosedXML.Excel.Ranges.Index;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using static ClosedXML.Excel.XLProtectionAlgorithm;
@@ -27,7 +26,6 @@ namespace ClosedXML.Excel
         private Double _rowHeight;
         private Boolean _tabActive;
         private XLSheetProtection _protection;
-        internal Boolean EventTrackingEnabled;
 
         /// <summary>
         /// Fake address to be used everywhere the invalid address is needed.
@@ -45,8 +43,6 @@ namespace ClosedXML.Excel
                     new XLAddress(null, XLHelper.MaxRowNumber, XLHelper.MaxColumnNumber, false, false)),
                 (workbook.Style as XLStyle).Value)
         {
-            EventTrackingEnabled = workbook.EventTracking == XLEventTracking.Enabled;
-
             Workbook = workbook;
             InvalidAddress = new XLAddress(this, 0, 0, false, false);
 
@@ -689,10 +685,16 @@ namespace ClosedXML.Excel
             set => Protection = value as XLSheetProtection;
         }
 
-        public IXLSheetProtection Protect()
+        public IXLSheetProtection Protect(Algorithm algorithm = DefaultProtectionAlgorithm)
         {
-            return Protection.Protect();
+            return Protection.Protect(algorithm);
         }
+
+        public IXLSheetProtection Protect(XLSheetProtectionElements allowedElements)
+            => Protection.Protect(allowedElements);
+
+        public IXLSheetProtection Protect(Algorithm algorithm, XLSheetProtectionElements allowedElements)
+            => Protection.Protect(algorithm, allowedElements);
 
         public IXLSheetProtection Protect(String password, Algorithm algorithm = DefaultProtectionAlgorithm)
         {
@@ -704,9 +706,9 @@ namespace ClosedXML.Excel
             return Protection.Protect(password, algorithm, allowedElements);
         }
 
-        IXLElementProtection IXLProtectable.Protect()
+        IXLElementProtection IXLProtectable.Protect(Algorithm algorithm)
         {
-            return Protect();
+            return Protect(algorithm);
         }
 
         IXLElementProtection IXLProtectable.Protect(String password, Algorithm algorithm)
@@ -966,7 +968,7 @@ namespace ClosedXML.Excel
 
         public IXLRows RowsUsed(XLCellsUsedOptions options = XLCellsUsedOptions.AllContents, Func<IXLRow, Boolean> predicate = null)
         {
-            var rows = new XLRows(Worksheet, StyleValue);
+            var rows = new XLRows(worksheet: null, StyleValue);
             var rowsUsed = new HashSet<Int32>();
             Internals.RowsCollection.Keys.ForEach(r => rowsUsed.Add(r));
             Internals.CellsCollection.RowsUsed.Keys.ForEach(r => rowsUsed.Add(r));
@@ -995,7 +997,7 @@ namespace ClosedXML.Excel
 
         public IXLColumns ColumnsUsed(XLCellsUsedOptions options = XLCellsUsedOptions.AllContents, Func<IXLColumn, Boolean> predicate = null)
         {
-            var columns = new XLColumns(Worksheet, StyleValue);
+            var columns = new XLColumns(worksheet: null, StyleValue);
             var columnsUsed = new HashSet<Int32>();
             Internals.ColumnsCollection.Keys.ForEach(r => columnsUsed.Add(r));
             Internals.CellsCollection.ColumnsUsed.Keys.ForEach(r => columnsUsed.Add(r));
@@ -1478,64 +1480,46 @@ namespace ClosedXML.Excel
 
         public void NotifyRangeShiftedRows(XLRange range, Int32 rowsShifted)
         {
-            try
+            var rangesToShift = _rangeRepository
+                .Where(r => r.RangeAddress.IsValid)
+                .OrderBy(r => r.RangeAddress.FirstAddress.RowNumber * -Math.Sign(rowsShifted))
+                .ToList();
+
+            WorksheetRangeShiftedRows(range, rowsShifted);
+
+            foreach (var storedRange in rangesToShift)
             {
-                SuspendEvents();
+                if (storedRange.IsEntireColumn())
+                    continue;
 
-                var rangesToShift = _rangeRepository
-                    .Where(r => r.RangeAddress.IsValid)
-                    .OrderBy(r => r.RangeAddress.FirstAddress.RowNumber * -Math.Sign(rowsShifted))
-                    .ToList();
+                if (ReferenceEquals(range, storedRange))
+                    continue;
 
-                WorksheetRangeShiftedRows(range, rowsShifted);
-
-                foreach (var storedRange in rangesToShift)
-                {
-                    if (storedRange.IsEntireColumn())
-                        continue;
-
-                    if (ReferenceEquals(range, storedRange))
-                        continue;
-
-                    storedRange.WorksheetRangeShiftedRows(range, rowsShifted);
-                }
-                range.WorksheetRangeShiftedRows(range, rowsShifted);
+                storedRange.WorksheetRangeShiftedRows(range, rowsShifted);
             }
-            finally
-            {
-                ResumeEvents();
-            }
+            range.WorksheetRangeShiftedRows(range, rowsShifted);
         }
 
         public void NotifyRangeShiftedColumns(XLRange range, Int32 columnsShifted)
         {
-            try
+            var rangesToShift = _rangeRepository
+                .Where(r => r.RangeAddress.IsValid)
+                .OrderBy(r => r.RangeAddress.FirstAddress.ColumnNumber * -Math.Sign(columnsShifted))
+                .ToList();
+
+            WorksheetRangeShiftedColumns(range, columnsShifted);
+
+            foreach (var storedRange in rangesToShift)
             {
-                SuspendEvents();
+                if (storedRange.IsEntireRow())
+                    continue;
 
-                var rangesToShift = _rangeRepository
-                    .Where(r => r.RangeAddress.IsValid)
-                    .OrderBy(r => r.RangeAddress.FirstAddress.ColumnNumber * -Math.Sign(columnsShifted))
-                    .ToList();
+                if (ReferenceEquals(range, storedRange))
+                    continue;
 
-                WorksheetRangeShiftedColumns(range, columnsShifted);
-
-                foreach (var storedRange in rangesToShift)
-                {
-                    if (storedRange.IsEntireRow())
-                        continue;
-
-                    if (ReferenceEquals(range, storedRange))
-                        continue;
-
-                    storedRange.WorksheetRangeShiftedColumns(range, columnsShifted);
-                }
-                range.WorksheetRangeShiftedColumns(range, columnsShifted);
+                storedRange.WorksheetRangeShiftedColumns(range, columnsShifted);
             }
-            finally
-            {
-                ResumeEvents();
-            }
+            range.WorksheetRangeShiftedColumns(range, columnsShifted);
         }
 
         public XLRow Row(Int32 rowNumber, Boolean pingCells)
@@ -1699,19 +1683,6 @@ namespace ClosedXML.Excel
 
         public IXLSparklineGroups SparklineGroups { get; private set; }
 
-        private Boolean _eventTracking;
-
-        public void SuspendEvents()
-        {
-            _eventTracking = EventTrackingEnabled;
-            EventTrackingEnabled = false;
-        }
-
-        public void ResumeEvents()
-        {
-            EventTrackingEnabled = _eventTracking;
-        }
-
         private IXLRanges _selectedRanges;
 
         public IXLRanges SelectedRanges
@@ -1729,16 +1700,12 @@ namespace ClosedXML.Excel
 
         public IXLCell ActiveCell { get; set; }
 
-        private XLCalcEngine _calcEngine;
+        internal XLCalcEngine CalcEngine => Workbook.CalcEngine;
 
-        internal XLCalcEngine CalcEngine
+        public Object Evaluate(String expression, string formulaAddress = null)
         {
-            get { return _calcEngine ?? (_calcEngine = new XLCalcEngine(this)); }
-        }
-
-        public Object Evaluate(String expression)
-        {
-            return CalcEngine.Evaluate(expression);
+            IXLAddress address = formulaAddress is not null ? XLAddress.Create(formulaAddress) : null;
+            return CalcEngine.Evaluate(expression, Workbook, this, address);
         }
 
         /// <summary>
@@ -1792,16 +1759,6 @@ namespace ClosedXML.Excel
             return Pictures.Add(stream, format, name);
         }
 
-        public IXLPicture AddPicture(Bitmap bitmap)
-        {
-            return Pictures.Add(bitmap);
-        }
-
-        public IXLPicture AddPicture(Bitmap bitmap, string name)
-        {
-            return Pictures.Add(bitmap, name);
-        }
-
         public IXLPicture AddPicture(string imageFile)
         {
             return Pictures.Add(imageFile);
@@ -1840,16 +1797,28 @@ namespace ClosedXML.Excel
         /// <returns>Current value of the specified cell. Empty string for non-initialized cells.</returns>
         internal object GetCellValue(int ro, int co)
         {
-            if (Internals.CellsCollection.MaxRowUsed < ro ||
-                Internals.CellsCollection.MaxColumnUsed < co ||
-                !Internals.CellsCollection.Contains(ro, co))
+            var cell = GetCell(ro, co);
+            if (cell is null)
                 return string.Empty;
 
-            var cell = Worksheet.Internals.CellsCollection.GetCell(ro, co);
+            // LEGACY: This is deeply suspicious, this only exists so the legacy formulas can get cell value
             if (cell.IsEvaluating)
                 return string.Empty;
 
             return cell.Value;
+        }
+
+        /// <summary>
+        /// Get cell or null, if cell doesn't exist.
+        /// </summary>
+        internal XLCell GetCell(int ro, int co)
+        {
+            if (Internals.CellsCollection.MaxRowUsed < ro ||
+                Internals.CellsCollection.MaxColumnUsed < co ||
+                !Internals.CellsCollection.Contains(ro, co))
+                return null;
+
+            return Worksheet.Internals.CellsCollection.GetCell(ro, co);
         }
 
         public XLRange GetOrCreateRange(XLRangeParameters xlRangeParameters)

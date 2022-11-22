@@ -222,8 +222,6 @@ namespace ClosedXML.Excel
         // Adds child parts and generates content of the specified part.
         private void CreateParts(SpreadsheetDocument document, SaveOptions options)
         {
-            this.SuspendEvents();
-
             var context = new SaveContext();
 
             var workbookPart = document.WorkbookPart ?? document.AddWorkbookPart();
@@ -382,8 +380,6 @@ namespace ClosedXML.Excel
 
             // Clear list of deleted worksheets to prevent errors on multiple saves
             worksheets.Deleted.Clear();
-
-            this.ResumeEvents();
         }
 
         private bool DeleteExistingComments(WorksheetPart worksheetPart, XLWorksheet worksheet, WorksheetCommentsPart commentsPart, VmlDrawingPart vmlDrawingPart)
@@ -2252,22 +2248,22 @@ namespace ClosedXML.Excel
                 };
 
                 var sourceHeaderRow = source.FirstRow().RowNumber();
-                var fieldValueCells = source.CellsUsed(cell => cell.Address.ColumnNumber == columnNumber
-                                                           && cell.Address.RowNumber > sourceHeaderRow);
+                var cellsUsed = source.CellsUsed(XLCellsUsedOptions.All,
+                                                 cell => cell.Address.ColumnNumber == columnNumber
+                                                         && cell.Address.RowNumber > sourceHeaderRow)
+                                                 .ToArray();
+                var fieldValueCells = cellsUsed.Where(cell => !cell.IsEmpty()).ToArray();
                 var types = fieldValueCells.Select(cell => cell.DataType).Distinct().ToArray();
-                var containsBlank = source.CellsUsed(XLCellsUsedOptions.All,
-                    cell => cell.Address.ColumnNumber == columnNumber
-                            && cell.Address.RowNumber > sourceHeaderRow
-                            && cell.IsEmpty()).Any();
+                var containsBlank = cellsUsed.Any(cell => cell.IsEmpty());
 
                 // For a totally blank column, we need to check that all cells in column are unused
-                if (!fieldValueCells.Any())
+                if (fieldValueCells.Length == 0)
                 {
                     ptfi.IsTotallyBlankField = true;
                     containsBlank = true;
                 }
 
-                if (types.Any())
+                if (types.Length > 0)
                 {
                     if (types.Length == 1 && types.Single() == XLDataType.Number)
                     {
@@ -3383,8 +3379,9 @@ namespace ClosedXML.Excel
             if (existingAnchor != null)
                 worksheetDrawing.RemoveChild(existingAnchor);
 
-            var extentsCx = ConvertToEnglishMetricUnits(pic.Width, GraphicsUtils.Graphics.DpiX);
-            var extentsCy = ConvertToEnglishMetricUnits(pic.Height, GraphicsUtils.Graphics.DpiY);
+            var wb = pic.Worksheet.Workbook;
+            var extentsCx = ConvertToEnglishMetricUnits(pic.Width, wb.DpiX);
+            var extentsCy = ConvertToEnglishMetricUnits(pic.Height, wb.DpiY);
 
             var nvps = worksheetDrawing.Descendants<Xdr.NonVisualDrawingProperties>();
             var nvpId = nvps.Any() ?
@@ -3399,8 +3396,8 @@ namespace ClosedXML.Excel
                     var absoluteAnchor = new Xdr.AbsoluteAnchor(
                         new Xdr.Position
                         {
-                            X = ConvertToEnglishMetricUnits(pic.Left, GraphicsUtils.Graphics.DpiX),
-                            Y = ConvertToEnglishMetricUnits(pic.Top, GraphicsUtils.Graphics.DpiY)
+                            X = ConvertToEnglishMetricUnits(pic.Left, wb.DpiX),
+                            Y = ConvertToEnglishMetricUnits(pic.Top, wb.DpiY)
                         },
                         new Xdr.Extent
                         {
@@ -3437,8 +3434,8 @@ namespace ClosedXML.Excel
                     {
                         ColumnId = new Xdr.ColumnId((moveAndSizeFromMarker.ColumnNumber - 1).ToInvariantString()),
                         RowId = new Xdr.RowId((moveAndSizeFromMarker.RowNumber - 1).ToInvariantString()),
-                        ColumnOffset = new Xdr.ColumnOffset(ConvertToEnglishMetricUnits(moveAndSizeFromMarker.Offset.X, GraphicsUtils.Graphics.DpiX).ToInvariantString()),
-                        RowOffset = new Xdr.RowOffset(ConvertToEnglishMetricUnits(moveAndSizeFromMarker.Offset.Y, GraphicsUtils.Graphics.DpiY).ToInvariantString())
+                        ColumnOffset = new Xdr.ColumnOffset(ConvertToEnglishMetricUnits(moveAndSizeFromMarker.Offset.X, wb.DpiX).ToInvariantString()),
+                        RowOffset = new Xdr.RowOffset(ConvertToEnglishMetricUnits(moveAndSizeFromMarker.Offset.Y, wb.DpiY).ToInvariantString())
                     };
 
                     var moveAndSizeToMarker = pic.Markers[Drawings.XLMarkerPosition.BottomRight];
@@ -3447,8 +3444,8 @@ namespace ClosedXML.Excel
                     {
                         ColumnId = new Xdr.ColumnId((moveAndSizeToMarker.ColumnNumber - 1).ToInvariantString()),
                         RowId = new Xdr.RowId((moveAndSizeToMarker.RowNumber - 1).ToInvariantString()),
-                        ColumnOffset = new Xdr.ColumnOffset(ConvertToEnglishMetricUnits(moveAndSizeToMarker.Offset.X, GraphicsUtils.Graphics.DpiX).ToInvariantString()),
-                        RowOffset = new Xdr.RowOffset(ConvertToEnglishMetricUnits(moveAndSizeToMarker.Offset.Y, GraphicsUtils.Graphics.DpiY).ToInvariantString())
+                        ColumnOffset = new Xdr.ColumnOffset(ConvertToEnglishMetricUnits(moveAndSizeToMarker.Offset.X, wb.DpiX).ToInvariantString()),
+                        RowOffset = new Xdr.RowOffset(ConvertToEnglishMetricUnits(moveAndSizeToMarker.Offset.Y, wb.DpiY).ToInvariantString())
                     };
 
                     var twoCellAnchor = new Xdr.TwoCellAnchor(
@@ -3484,8 +3481,8 @@ namespace ClosedXML.Excel
                     {
                         ColumnId = new Xdr.ColumnId((moveFromMarker.ColumnNumber - 1).ToInvariantString()),
                         RowId = new Xdr.RowId((moveFromMarker.RowNumber - 1).ToInvariantString()),
-                        ColumnOffset = new Xdr.ColumnOffset(ConvertToEnglishMetricUnits(moveFromMarker.Offset.X, GraphicsUtils.Graphics.DpiX).ToInvariantString()),
-                        RowOffset = new Xdr.RowOffset(ConvertToEnglishMetricUnits(moveFromMarker.Offset.Y, GraphicsUtils.Graphics.DpiY).ToInvariantString())
+                        ColumnOffset = new Xdr.ColumnOffset(ConvertToEnglishMetricUnits(moveFromMarker.Offset.X, wb.DpiX).ToInvariantString()),
+                        RowOffset = new Xdr.RowOffset(ConvertToEnglishMetricUnits(moveFromMarker.Offset.Y, wb.DpiY).ToInvariantString())
                     };
 
                     var oneCellAnchor = new Xdr.OneCellAnchor(
@@ -5083,7 +5080,6 @@ namespace ClosedXML.Excel
                     {
                         row.Height = thisRow.Height.SaveRound();
                         row.CustomHeight = true;
-                        row.CustomFormat = true;
                     }
 
                     if (thisRow.StyleValue != xlWorksheet.StyleValue)

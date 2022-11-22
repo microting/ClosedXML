@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
 
 namespace ClosedXML.Excel
@@ -209,8 +208,8 @@ namespace ClosedXML.Excel
 
         public IXLRow AdjustToContents(Int32 startColumn, Int32 endColumn, Double minHeight, Double maxHeight)
         {
-            var fontCache = new Dictionary<IXLFontBase, Font>();
-
+            var engine = Worksheet.Workbook.GraphicEngine;
+            var dpiY = Worksheet.Workbook.DpiY;
             Double rowMaxHeight = minHeight;
             foreach (XLCell c in from XLCell c in Row(startColumn, endColumn).CellsUsed() where !c.IsMerged() select c)
             {
@@ -250,7 +249,7 @@ namespace ClosedXML.Excel
                     }
 
                     Double maxLongCol = kpList.Max(kp => kp.Value.Length);
-                    Double maxHeightCol = kpList.Max(kp => kp.Key.GetHeight(fontCache));
+                    Double maxHeightCol = XLHelper.PixelsToPoints(kpList.Max(kp => engine.GetTextHeight(kp.Key, dpiY)), dpiY);
                     Int32 lineCount = kpList.Count(kp => kp.Value.Contains(Environment.NewLine)) + 1;
                     if (textRotation == 0)
                         thisHeight = maxHeightCol * lineCount;
@@ -271,7 +270,7 @@ namespace ClosedXML.Excel
                     }
                 }
                 else
-                    thisHeight = c.Style.Font.GetHeight(fontCache);
+                    thisHeight = XLHelper.PixelsToPoints(engine.GetTextHeight(c.Style.Font, dpiY), dpiY);
 
                 if (thisHeight >= maxHeight)
                 {
@@ -287,10 +286,6 @@ namespace ClosedXML.Excel
 
             Height = rowMaxHeight;
 
-            foreach (IDisposable font in fontCache.Values)
-            {
-                font.Dispose();
-            }
             return this;
         }
 

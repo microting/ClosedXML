@@ -8,13 +8,14 @@ namespace ClosedXML.Excel
         /// Gets or sets the width of this column.
         /// </summary>
         /// <value>
-        /// The width of this column.
+        /// The width of the column as multiple of maximum digit width (MDW). MDW is a maximum width of a 0-9 digit character.
         /// </value>
         Double Width { get; set; }
 
         /// <summary>
         /// Deletes this column and shifts the columns at the right of this one accordingly.
         /// </summary>
+        /// <remarks>Don't use in a loop due to poor performance. Use <see cref="IXLRange.Delete(XLShiftDeletedCells)"/> instead.</remarks>
         void Delete();
 
         /// <summary>

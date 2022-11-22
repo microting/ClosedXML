@@ -1,4 +1,5 @@
 using ClosedXML.Excel.CalcEngine;
+using ClosedXML.Graphics;
 using DocumentFormat.OpenXml;
 using System;
 using System.Collections.Generic;
@@ -10,8 +11,6 @@ using static ClosedXML.Excel.XLProtectionAlgorithm;
 
 namespace ClosedXML.Excel
 {
-    public enum XLEventTracking { Enabled, Disabled }
-
     public enum XLCalculateMode
     {
         Auto,
@@ -118,13 +117,17 @@ namespace ClosedXML.Excel
         internal readonly List<UnsupportedSheet> UnsupportedSheets =
             new List<UnsupportedSheet>();
 
-        public XLEventTracking EventTracking { get; set; }
-
         /// <summary>
         /// Counter increasing at workbook data change. Serves to determine if the cell formula
         /// has to be recalculated.
         /// </summary>
         internal long RecalculationCounter { get; private set; }
+
+        internal IXLGraphicEngine GraphicEngine { get; }
+
+        internal double DpiX { get; }
+
+        internal double DpiY { get; }
 
         /// <summary>
         /// Notify that workbook data has been changed which means that cached formula values
@@ -657,19 +660,65 @@ namespace ClosedXML.Excel
         ///   Creates a new Excel workbook.
         /// </summary>
         public XLWorkbook()
-            : this(XLEventTracking.Enabled)
+            : this(new LoadOptions())
         {
         }
 
         internal XLWorkbook(String file, Boolean asTemplate)
-            : this(XLEventTracking.Enabled)
+            : this(new LoadOptions())
         {
             LoadSheetsFromTemplate(file);
         }
 
-        public XLWorkbook(XLEventTracking eventTracking)
+        /// <summary>
+        ///   Opens an existing workbook from a file.
+        /// </summary>
+        /// <param name = "file">The file to open.</param>
+        public XLWorkbook(String file)
+            : this(file, new LoadOptions())
         {
-            EventTracking = eventTracking;
+        }
+
+        public XLWorkbook(String file, LoadOptions loadOptions)
+            : this(loadOptions)
+        {
+            _loadSource = XLLoadSource.File;
+            _originalFile = file;
+            _spreadsheetDocumentType = GetSpreadsheetDocumentType(_originalFile);
+            Load(file);
+
+            if (loadOptions.RecalculateAllFormulas)
+                this.RecalculateAllFormulas();
+        }
+
+        /// <summary>
+        ///   Opens an existing workbook from a stream.
+        /// </summary>
+        /// <param name = "stream">The stream to open.</param>
+        public XLWorkbook(Stream stream)
+            : this(stream, new LoadOptions())
+        {
+        }
+
+        public XLWorkbook(Stream stream, LoadOptions loadOptions)
+            : this(loadOptions)
+        {
+            _loadSource = XLLoadSource.Stream;
+            _originalStream = stream;
+            Load(stream);
+
+            if (loadOptions.RecalculateAllFormulas)
+                this.RecalculateAllFormulas();
+        }
+
+        public XLWorkbook(LoadOptions loadOptions)
+        {
+            if (loadOptions is null)
+                throw new ArgumentNullException(nameof(loadOptions));
+
+            DpiX = loadOptions.Dpi.X;
+            DpiY = loadOptions.Dpi.Y;
+            GraphicEngine = loadOptions.GraphicEngine ?? LoadOptions.DefaultGraphicEngine ?? DefaultGraphicEngine.Instance.Value;
             Protection = new XLWorkbookProtection(DefaultProtectionAlgorithm);
             DefaultRowHeight = 15;
             DefaultColumnWidth = 8.43;
@@ -695,60 +744,6 @@ namespace ClosedXML.Excel
             CustomProperties = new XLCustomProperties(this);
             ShapeIdManager = new XLIdManager();
             Author = Environment.UserName;
-        }
-
-        public XLWorkbook(LoadOptions loadOptions)
-            : this(loadOptions.EventTracking)
-        {
-        }
-
-        /// <summary>
-        ///   Opens an existing workbook from a file.
-        /// </summary>
-        /// <param name = "file">The file to open.</param>
-        public XLWorkbook(String file)
-            : this(file, XLEventTracking.Enabled)
-        {
-        }
-
-        public XLWorkbook(String file, XLEventTracking eventTracking)
-            : this(eventTracking)
-        {
-            _loadSource = XLLoadSource.File;
-            _originalFile = file;
-            _spreadsheetDocumentType = GetSpreadsheetDocumentType(_originalFile);
-            Load(file);
-        }
-
-        public XLWorkbook(String file, LoadOptions loadOptions)
-            : this(file, loadOptions.EventTracking)
-        {
-            if (loadOptions.RecalculateAllFormulas)
-                this.RecalculateAllFormulas();
-        }
-
-        /// <summary>
-        ///   Opens an existing workbook from a stream.
-        /// </summary>
-        /// <param name = "stream">The stream to open.</param>
-        public XLWorkbook(Stream stream)
-            : this(stream, XLEventTracking.Enabled)
-        {
-        }
-
-        public XLWorkbook(Stream stream, XLEventTracking eventTracking)
-            : this(eventTracking)
-        {
-            _loadSource = XLLoadSource.Stream;
-            _originalStream = stream;
-            Load(stream);
-        }
-
-        public XLWorkbook(Stream stream, LoadOptions loadOptions)
-            : this(stream, loadOptions.EventTracking)
-        {
-            if (loadOptions.RecalculateAllFormulas)
-                this.RecalculateAllFormulas();
         }
 
         #endregion Constructor
@@ -808,20 +803,12 @@ namespace ClosedXML.Excel
             Worksheets.ForEach(w => (w as XLWorksheet).Cleanup());
         }
 
-#if NET40
-        public void Dispose()
-        {
-            // net40 doesn't support Janitor.Fody, so let's dispose manually
-            DisposeManaged();
-        }
-#else
 
         public void Dispose()
         {
-            // Leave this empty (for non net40 targets) so that Janitor.Fody can do its work
+            // Leave this empty so that Janitor.Fody can do its work
         }
 
-#endif
 
         public Boolean Use1904DateSystem { get; set; }
 
@@ -878,14 +865,14 @@ namespace ClosedXML.Excel
 
         private XLCalcEngine _calcEngine;
 
-        private XLCalcEngine CalcEngine
+        internal XLCalcEngine CalcEngine
         {
-            get { return _calcEngine ?? (_calcEngine = new XLCalcEngine(this)); }
+            get { return _calcEngine ??= new XLCalcEngine(CultureInfo.CurrentCulture); }
         }
 
         public Object Evaluate(String expression)
         {
-            return CalcEngine.Evaluate(expression);
+            return CalcEngine.Evaluate(expression, this);
         }
 
         /// <summary>
@@ -902,9 +889,12 @@ namespace ClosedXML.Excel
 
         private static XLCalcEngine CalcEngineExpr
         {
-            get { return _calcEngineExpr ?? (_calcEngineExpr = new XLCalcEngine()); }
+            get { return _calcEngineExpr ??= new XLCalcEngine(CultureInfo.InvariantCulture); }
         }
 
+        /// <summary>
+        /// Evaluate a formula and return a value. Formulas with references don't work and culture used for conversion is invariant.
+        /// </summary>
         public static Object EvaluateExpr(String expression)
         {
             return CalcEngineExpr.Evaluate(expression);
@@ -980,10 +970,16 @@ namespace ClosedXML.Excel
             return protection;
         }
 
-        public IXLWorkbookProtection Protect()
+        public IXLWorkbookProtection Protect(Algorithm algorithm = DefaultProtectionAlgorithm)
         {
-            return Protection.Protect();
+            return Protection.Protect(algorithm);
         }
+
+        public IXLWorkbookProtection Protect(XLWorkbookProtectionElements allowedElements)
+            => Protection.Protect(allowedElements);
+
+        public IXLWorkbookProtection Protect(Algorithm algorithm, XLWorkbookProtectionElements allowedElements)
+            => Protection.Protect(algorithm, allowedElements);
 
         [Obsolete("Use Protect(String password, Algorithm algorithm, TElement allowedElements)")]
         public IXLWorkbookProtection Protect(Boolean lockStructure)
@@ -1008,15 +1004,24 @@ namespace ClosedXML.Excel
             return Protection.Protect(password, algorithm, allowedElements);
         }
 
-        IXLElementProtection IXLProtectable.Protect()
+        IXLElementProtection IXLProtectable.Protect(Algorithm algorithm)
         {
-            return Protect();
+            return Protect(algorithm);
         }
 
         IXLElementProtection IXLProtectable.Protect(string password, Algorithm algorithm)
         {
             return Protect(password, algorithm);
         }
+
+        IXLWorkbookProtection IXLProtectable<IXLWorkbookProtection, XLWorkbookProtectionElements>.Protect(XLWorkbookProtectionElements allowedElements)
+            => Protect(allowedElements);
+
+        IXLWorkbookProtection IXLProtectable<IXLWorkbookProtection, XLWorkbookProtectionElements>.Protect(Algorithm algorithm, XLWorkbookProtectionElements allowedElements)
+            => Protect(algorithm, allowedElements);
+
+        IXLWorkbookProtection IXLProtectable<IXLWorkbookProtection, XLWorkbookProtectionElements>.Protect(string password, Algorithm algorithm, XLWorkbookProtectionElements allowedElements)
+            => Protect(password, algorithm, allowedElements);
 
         public IXLWorkbookProtection Unprotect()
         {
@@ -1053,22 +1058,6 @@ namespace ClosedXML.Excel
 
                 default:
                     throw new NotImplementedException();
-            }
-        }
-
-        public void SuspendEvents()
-        {
-            foreach (var ws in WorksheetsInternal)
-            {
-                ws.SuspendEvents();
-            }
-        }
-
-        public void ResumeEvents()
-        {
-            foreach (var ws in WorksheetsInternal)
-            {
-                ws.ResumeEvents();
             }
         }
     }

@@ -8,7 +8,7 @@ namespace ClosedXML.Excel
         /// Gets or sets the height of this row.
         /// </summary>
         /// <value>
-        /// The width of this row.
+        /// The width of this row in points.
         /// </value>
         Double Height { get; set; }
 
@@ -20,6 +20,7 @@ namespace ClosedXML.Excel
         /// <summary>
         /// Deletes this row and shifts the rows below this one accordingly.
         /// </summary>
+        /// <remarks>Don't use in a loop due to poor performance. Use <see cref="IXLRange.Delete(XLShiftDeletedCells)"/> instead.</remarks>
         void Delete();
 
         /// <summary>

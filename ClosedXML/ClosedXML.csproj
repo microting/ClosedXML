@@ -1,11 +1,11 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net46</TargetFrameworks>
+    <TargetFrameworks>netstandard2.0</TargetFrameworks>
     <LangVersion>8.0</LangVersion>
-    <AssemblyName>ClosedXML</AssemblyName>
-    <PackageId>Microting.ClosedXML</PackageId>
-    <Version>0.95.5</Version>
+    <AssemblyName>Microting.ClosedXML</AssemblyName>
+    <PackageId>ClosedXML</PackageId>
+    <Version>0.95.4</Version>
     <Authors>Francois Botha, Aleksei Pankratev, Manuel de Leon, Amir Ghezelbash</Authors>
     <Owners>Francois Botha, Aleksei Pankratev</Owners>
     <Company />

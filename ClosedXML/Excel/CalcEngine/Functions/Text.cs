@@ -7,20 +7,23 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using static ClosedXML.Excel.CalcEngine.Functions.SignatureAdapter;
 
 namespace ClosedXML.Excel.CalcEngine
 {
     internal static class Text
     {
-        public static void Register(CalcEngine ce)
+        public static void Register(FunctionRegistry ce)
         {
             ce.RegisterFunction("ASC", 1, Asc); // Changes full-width (double-byte) English letters or katakana within a character string to half-width (single-byte) characters
             //ce.RegisterFunction("BAHTTEXT	Converts a number to text, using the ß (baht) currency format
             ce.RegisterFunction("CHAR", 1, _Char); // Returns the character specified by the code number
             ce.RegisterFunction("CLEAN", 1, Clean); //	Removes all nonprintable characters from text
             ce.RegisterFunction("CODE", 1, Code); // Returns a numeric code for the first character in a text string
-            ce.RegisterFunction("CONCAT", 1, int.MaxValue, Concat); //	Joins several text items into one text item
-            ce.RegisterFunction("CONCATENATE", 1, int.MaxValue, Concatenate); //	Joins several text items into one text item
+            ce.RegisterFunction("CONCAT", 1, int.MaxValue, Concat, AllowRange.All); //	Joins several text items into one text item
+
+            // LEGACY: Remove after switch to new engine. CONCATENATE function doesn't actually accept ranges, but it's legacy implementation has a check and there is a test.
+            ce.RegisterFunction("CONCATENATE", 1, int.MaxValue, Concatenate, AllowRange.All); //	Joins several text items into one text item
             ce.RegisterFunction("DOLLAR", 1, 2, Dollar); // Converts a number to text, using the $ (dollar) currency format
             ce.RegisterFunction("EXACT", 2, Exact); // Checks to see if two text values are identical
             ce.RegisterFunction("FIND", 2, 3, Find); //Finds one text value within another (case-sensitive)
@@ -40,10 +43,10 @@ namespace ClosedXML.Excel.CalcEngine
             ce.RegisterFunction("SUBSTITUTE", 3, 4, Substitute); // Substitutes new text for old text in a text string
             ce.RegisterFunction("T", 1, T); // Converts its arguments to text
             ce.RegisterFunction("TEXT", 2, _Text); // Formats a number and converts it to text
-            ce.RegisterFunction("TEXTJOIN", 3, 254, TextJoin); // Joins text via delimiter
+            ce.RegisterFunction("TEXTJOIN", 3, 254, TextJoin, AllowRange.Except, 0, 1); // Joins text via delimiter
             ce.RegisterFunction("TRIM", 1, Trim); // Removes spaces from text
             ce.RegisterFunction("UPPER", 1, Upper); // Converts text to uppercase
-            ce.RegisterFunction("VALUE", 1, Value); // Converts a text argument to a number
+            ce.RegisterFunction("VALUE", 1, 1, Adapt(Value), FunctionFlags.Scalar); // Converts a text argument to a number
         }
 
         private static object _Char(List<Expression> p)
@@ -287,8 +290,9 @@ namespace ClosedXML.Excel.CalcEngine
 
         private static object T(List<Expression> p)
         {
-            if (p[0]._token.Value.GetType() == typeof(string))
-                return (string)p[0];
+            var value = p[0].Evaluate();
+            if (value is string)
+                return value;
             else
                 return "";
         }
@@ -383,9 +387,48 @@ namespace ClosedXML.Excel.CalcEngine
             return ((string)p[0]).ToUpper();
         }
 
-        private static object Value(List<Expression> p)
+        private static AnyValue Value(CalcContext ctx, ScalarValue arg)
         {
-            return double.Parse(p[0], NumberStyles.Any, CultureInfo.InvariantCulture);
+            // Specification is vague/misleading:
+            // * function accepts significantly more diverse range of inputs e.g. result of "($100)" is -100
+            //   despite braces not being part of any default number format.
+            // * Different cultures work weird, e.g. 7:30 PM is detected as 19:30 in cs locale despite "PM" designator being "odp."
+            // * Formats 14 and 22 differ depending on the locale (that is why in dialogue are with a '*' sign)
+            if (arg.IsBlank)
+                return 0;
+
+            if (arg.TryPickNumber(out var number))
+                return number;
+
+            if (!arg.TryPickText(out var text, out var error))
+                return error;
+
+            const string percentSign = "%";
+            var isPercent = text.IndexOf(percentSign, StringComparison.Ordinal) >= 0;
+            var textWithoutPercent = isPercent ? text.Replace(percentSign, string.Empty) : text;
+            if (double.TryParse(textWithoutPercent, NumberStyles.Any, ctx.Culture, out var parsedNumber))
+                return isPercent ? parsedNumber / 100d : parsedNumber;
+
+            // fraction not parsed, maybe in the future
+            // No idea how Date/Time parsing works, good enough for initial approach
+            var dateTimeFormats = new[]
+            {
+                ctx.Culture.DateTimeFormat.ShortDatePattern,
+                ctx.Culture.DateTimeFormat.YearMonthPattern,
+                ctx.Culture.DateTimeFormat.ShortTimePattern,
+                ctx.Culture.DateTimeFormat.LongTimePattern,
+                @"mm-dd-yy", // format 14
+                @"d-MMMM-yy", // format 15
+                @"d-MMMM", // format 16
+                @"d-MMM-yyyy",
+                @"H:mm", // format 20
+                @"H:mm:ss" // format 21
+            };
+            const DateTimeStyles dateTimeStyle = DateTimeStyles.AllowWhiteSpaces | DateTimeStyles.NoCurrentDateDefault;
+            if (DateTime.TryParseExact(text, dateTimeFormats, ctx.Culture, dateTimeStyle, out var parsedDate))
+                return parsedDate.ToOADate();
+
+            return XLError.IncompatibleValue;
         }
 
         private static object NumberValue(List<Expression> p)
@@ -462,7 +505,8 @@ namespace ClosedXML.Excel.CalcEngine
 
         private static object Fixed(List<Expression> p)
         {
-            if (p[0]._token.Value.GetType() == typeof(string))
+            var numberToFormat = p[0].Evaluate();
+            if (numberToFormat is string)
                 throw new ApplicationException("Input type can't be string");
 
             Double value = p[0];

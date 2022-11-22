@@ -59,9 +59,6 @@ namespace ClosedXML.Excel
 
         public IXLAutoFilter Reapply()
         {
-            var ws = Range.Worksheet as XLWorksheet;
-            ws.SuspendEvents();
-
             // Recalculate shown / hidden rows
             var rows = Range.Rows(2, Range.RowCount());
             rows.ForEach(row =>
@@ -98,8 +95,8 @@ namespace ClosedXML.Excel
                             filterMatch = row.Cell(columnIndex).DataType == XLDataType.DateTime &&
                                     condition(row.Cell(columnIndex).GetDateTime());
                         else
-                            filterMatch = row.Cell(columnIndex).DataType == XLDataType.Number &&
-                                    condition(row.Cell(columnIndex).GetDouble());
+                            filterMatch = row.Cell(columnIndex).TryGetValue(out double number) &&
+                                    condition(number);
 
                         if (filter.Connector == XLConnector.And)
                         {
@@ -121,7 +118,6 @@ namespace ClosedXML.Excel
                 if (!rowMatch) row.WorksheetRow().Hide();
             }
 
-            ws.ResumeEvents();
             return this;
         }
 
@@ -160,16 +156,12 @@ namespace ClosedXML.Excel
             if (!IsEnabled)
                 throw new InvalidOperationException("Filter has not been enabled.");
 
-            var ws = Range.Worksheet as XLWorksheet;
-            ws.SuspendEvents();
             Range.Range(Range.FirstCell().CellBelow(), Range.LastCell()).Sort(columnToSortBy, sortOrder, matchCase,
                                                                               ignoreBlanks);
 
             Sorted = true;
             SortOrder = sortOrder;
             SortColumn = columnToSortBy;
-
-            ws.ResumeEvents();
 
             Reapply();
 

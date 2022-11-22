@@ -1,6 +1,6 @@
+using ClosedXML.Excel.CalcEngine.Exceptions;
 using ClosedXML.Excel.Drawings;
 using System;
-using System.Drawing;
 using System.IO;
 
 namespace ClosedXML.Excel
@@ -453,7 +453,13 @@ namespace ClosedXML.Excel
 
         IXLCell ActiveCell { get; set; }
 
-        Object Evaluate(String expression);
+        /// <summary>
+        /// Evaluate an formula and return a result.
+        /// </summary>
+        /// <param name="expression">Formula to evaluate.</param>
+        /// <param name="formulaAddress">A cell address that is used to provide context for formula calculation (mostly implicit intersection).</param>
+        /// <exception cref="MissingContextException">If <paramref name="formulaAddress"/> was needed for some part of calculation.</exception>
+        object Evaluate(String expression, string formulaAddress = null);
 
         /// <summary>
         /// Force recalculation of all cell formulas.
@@ -473,10 +479,6 @@ namespace ClosedXML.Excel
         IXLPicture AddPicture(Stream stream, XLPictureFormat format);
 
         IXLPicture AddPicture(Stream stream, XLPictureFormat format, String name);
-
-        IXLPicture AddPicture(Bitmap bitmap);
-
-        IXLPicture AddPicture(Bitmap bitmap, String name);
 
         IXLPicture AddPicture(String imageFile);
 

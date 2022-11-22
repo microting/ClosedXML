@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -20,10 +19,6 @@ namespace ClosedXML.Excel
         public const Double Epsilon = 1e-10;
 
         public static String LastCell { get { return $"{MaxColumnLetter}{MaxRowNumber}"; } }
-
-        private static readonly Lazy<Graphics> graphics = new Lazy<Graphics>(() => Graphics.FromImage(new Bitmap(200, 200)));
-        internal static Graphics Graphics { get => graphics.Value; }
-        internal static Double DpiX { get => Graphics.DpiX; }
 
         internal static readonly NumberStyles NumberStyle = NumberStyles.AllowDecimalPoint | NumberStyles.AllowLeadingSign | NumberStyles.AllowLeadingWhite | NumberStyles.AllowTrailingWhite | NumberStyles.AllowExponent;
         internal static readonly CultureInfo ParseCulture = CultureInfo.InvariantCulture;
@@ -221,32 +216,17 @@ namespace ClosedXML.Excel
             return range.Contains('-') ? range.Replace('-', ':').Split(':') : range.Split(':');
         }
 
-        public static Int32 GetPtFromPx(Double px)
-        {
-            return Convert.ToInt32(px * 72.0 / DpiX);
-        }
-
-        public static Double GetPxFromPt(Int32 pt)
-        {
-            return Convert.ToDouble(pt) * DpiX / 72.0;
-        }
-
         internal static IXLTableRows InsertRowsWithoutEvents(Func<int, bool, IXLRangeRows> insertFunc,
                                                              XLTableRange tableRange, Int32 numberOfRows,
                                                              Boolean expandTable)
         {
             var ws = tableRange.Worksheet;
-            var tracking = ws.EventTrackingEnabled;
-            ws.EventTrackingEnabled = false;
-
             var rows = new XLTableRows(ws.Style);
             var inserted = insertFunc(numberOfRows, false);
             inserted.ForEach(r => rows.Add(new XLTableRow(tableRange, r as XLRangeRow)));
 
             if (expandTable)
                 tableRange.Table.ExpandTableRows(numberOfRows);
-
-            ws.EventTrackingEnabled = tracking;
 
             return rows;
         }
@@ -367,5 +347,9 @@ namespace ClosedXML.Excel
 
             return true;
         }
+
+        internal static double PixelsToPoints(double pixels, double dpi) => pixels * 72d / dpi;
+
+        internal static double PointsToPixels(double points, double dpi) => points * dpi / 72d;
     }
 }

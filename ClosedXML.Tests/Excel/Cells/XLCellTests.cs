@@ -109,7 +109,7 @@ namespace ClosedXML.Tests
             Assert.IsNull(cell.Clear().GetValue<double?>());
             Assert.AreEqual(1.5, cell.SetValue(1.5).GetValue<double?>());
             Assert.AreEqual(2, cell.SetValue(1.5).GetValue<int?>());
-            Assert.AreEqual(2.5, cell.SetValue("2.5").GetValue<double?>());
+            Assert.AreEqual(2.5, cell.SetValue(2.5.ToString(CultureInfo.CurrentCulture)).GetValue<double?>());
             Assert.Throws<FormatException>(() => cell.SetValue("text").GetValue<double?>());
         }
 
@@ -558,7 +558,7 @@ namespace ClosedXML.Tests
 
             ws.Cell("A1").Clear();
             ws.Cell("A2").SetValue(1.5);
-            ws.Cell("A3").SetValue("2.5");
+            ws.Cell("A3").SetValue(2.5.ToString(CultureInfo.CurrentCulture));
             ws.Cell("A4").SetValue("text");
 
             foreach (var cell in ws.Range("A1:A3").Cells())
@@ -567,6 +567,21 @@ namespace ClosedXML.Tests
             }
 
             Assert.IsFalse(ws.Cell("A4").TryGetValue(out double? _));
+        }
+
+        [TestCase(2019, 11, 5, 11, 30, 5, 0, ExpectedResult = "2019-11-05 11:30:05.000")]
+        [TestCase(2019, 11, 5, 11, 30, 5, 2, ExpectedResult = "2019-11-05 11:30:05.000")]
+        [TestCase(2019, 11, 5, 11, 30, 5, -10, ExpectedResult = "2019-11-05 11:30:05.000")]
+        public string ValueSetDateTimeOffset(int year, int month, int days, int hours, int minutes, int seconds, int offsetInHours)
+        {
+            var cell = new XLWorkbook().Worksheets.Add("Sheet1").FirstCell();
+
+            cell.Value = new DateTimeOffset(year, month, days, hours, minutes, seconds, new TimeSpan(offsetInHours * TimeSpan.TicksPerHour));
+
+            // C# Supports 7 digits milliseconds, but excel only 3
+            const string format = "yyyy-MM-dd HH:mm:ss.fff";
+
+            return cell.GetDateTime().ToString(format);
         }
 
         [Test]
@@ -1041,14 +1056,12 @@ namespace ClosedXML.Tests
                 A1.FormulaA1 = "A2 + 1";
                 A2.FormulaA1 = "A1 + 1";
 
-                Assert.Throws<InvalidOperationException>(() =>
-                {
-                    var _ = A1.Value;
-                });
-                Assert.Throws<InvalidOperationException>(() =>
-                {
-                    var _ = A2.Value;
-                });
+                Assert.Throws(
+                    Is.TypeOf<InvalidOperationException>().And.Message.Contains("circular"),
+                    () => _ = A1.Value);
+                Assert.Throws(
+                    Is.TypeOf<InvalidOperationException>().And.Message.Contains("circular"),
+                    () => _ = A2.Value);
             }
         }
 
@@ -1094,7 +1107,7 @@ namespace ClosedXML.Tests
         }
 
         [Test]
-        public void TryGetValueFormulaEvaluation()
+        public void TryGetValueFormula_EvaluationFail_ReturnFalse()
         {
             using (var wb = new XLWorkbook())
             {
@@ -1175,6 +1188,15 @@ namespace ClosedXML.Tests
             var c = ws.FirstCell();
 
             Assert.Throws<FormatException>(() => c.ToString("dummy"));
+        }
+
+        [Test]
+        public void ConvertOtherSupportedTypes()
+        {
+            Assert.AreEqual("", XLCell.ConvertOtherSupportedTypes(DBNull.Value));
+            Assert.AreEqual("748bdf0c-3e7d-415e-967d-a875a27634ed", XLCell.ConvertOtherSupportedTypes(new Guid("748BDF0C-3E7D-415E-967D-A875A27634ED")));
+            Assert.AreEqual(new DateTime(2022, 06, 30, 12, 57, 00), XLCell.ConvertOtherSupportedTypes(new DateTimeOffset(2022, 06, 30, 12, 57, 00, new TimeSpan(2 * TimeSpan.TicksPerHour))));
+            Assert.AreEqual(DateTime.Today, XLCell.ConvertOtherSupportedTypes(DateTime.Today));
         }
     }
 }

@@ -157,7 +157,7 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         [TestCase("MCMLXXXIII ", 1983)]
         public void Arabic_ReturnsCorrectNumber(string roman, int arabic)
         {
-            var actual = (int)XLWorkbook.EvaluateExpr(string.Format($"ARABIC(\"{roman}\")"));
+            var actual = (double)XLWorkbook.EvaluateExpr(string.Format($"ARABIC(\"{roman}\")"));
             Assert.AreEqual(arabic, actual);
         }
 
@@ -500,6 +500,16 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             Assert.AreEqual(expectedResult, actual, tolerance);
         }
 
+        [Test]
+        public void Combin()
+        {
+            object actual1 = XLWorkbook.EvaluateExpr("Combin(200, 2)");
+            Assert.AreEqual(19900.0, actual1);
+
+            object actual2 = XLWorkbook.EvaluateExpr("Combin(20.1, 2.9)");
+            Assert.AreEqual(190.0, actual2);
+        }
+
         [Theory]
         public void Combin_Returns1ForKis0OrKEqualsN([Range(0, 10)] int n)
         {
@@ -572,7 +582,7 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         public void Combina_CalculatesCorrectValues(int number, int chosen, int expectedResult)
         {
             var actualResult = XLWorkbook.EvaluateExpr($"COMBINA({number}, {chosen})");
-            Assert.AreEqual(expectedResult, (long)actualResult);
+            Assert.AreEqual(expectedResult, (double)actualResult);
         }
 
         [Theory]
@@ -603,7 +613,7 @@ namespace ClosedXML.Tests.Excel.CalcEngine
                 number.ToString(CultureInfo.InvariantCulture),
                 chosen.ToString(CultureInfo.InvariantCulture)));
 
-            Assert.AreEqual(expectedResult, (long)actualResult);
+            Assert.AreEqual(expectedResult, (double)actualResult);
         }
 
         [TestCase(0, 1)]
@@ -804,6 +814,13 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             Assert.AreEqual(0, XLWorkbook.EvaluateExpr($"DECIMAL(\"0\", {radix})"));
         }
 
+        [Test]
+        public void Degrees()
+        {
+            object actual1 = XLWorkbook.EvaluateExpr("Degrees(180)");
+            Assert.IsTrue(Math.PI - (double)actual1 < XLHelper.Epsilon);
+        }
+
         [TestCase(0, 0)]
         [TestCase(Math.PI, 180)]
         [TestCase(Math.PI * 2, 360)]
@@ -827,15 +844,40 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             Assert.AreEqual(expected, actual, tolerance);
         }
 
+        [Test]
+        public void Even()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Even(3)");
+            Assert.AreEqual(4, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Even(2)");
+            Assert.AreEqual(2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Even(-1)");
+            Assert.AreEqual(-2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Even(-2)");
+            Assert.AreEqual(-2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Even(0)");
+            Assert.AreEqual(0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Even(1.5)");
+            Assert.AreEqual(2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Even(2.01)");
+            Assert.AreEqual(4, actual);
+        }
+
         [TestCase(1.5, 2)]
         [TestCase(3, 4)]
         [TestCase(2, 2)]
         [TestCase(-1, -2)]
         [TestCase(0, 0)]
         [TestCase(Math.PI, 4)]
-        public void Even_ReturnsCorrectResults(double input, int expectedResult)
+        public void Even_ReturnsCorrectResults(double input, double expectedResult)
         {
-            var actual = (int)XLWorkbook.EvaluateExpr(string.Format(@"EVEN({0})", input.ToString(CultureInfo.InvariantCulture)));
+            var actual = (double)XLWorkbook.EvaluateExpr(string.Format(@"EVEN({0})", input.ToString(CultureInfo.InvariantCulture)));
             Assert.AreEqual(expectedResult, actual);
         }
 
@@ -856,6 +898,13 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         {
             var actual = (double)XLWorkbook.EvaluateExpr(string.Format(@"EXP({0})", input.ToString(CultureInfo.InvariantCulture)));
             Assert.AreEqual(expectedResult, actual, tolerance);
+        }
+
+        [Test]
+        public void Fact()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Fact(5.9)");
+            Assert.AreEqual(120.0, actual);
         }
 
         [TestCase(0, 1L)]
@@ -894,6 +943,15 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         public void Fact_ThrowsValueExceptionForNonNumericInput()
         {
             Assert.Throws<CellValueException>(() => XLWorkbook.EvaluateExpr(string.Format(@"FACT(""x"")")));
+        }
+
+        [Test]
+        public void FactDouble()
+        {
+            object actual1 = XLWorkbook.EvaluateExpr("FactDouble(6)");
+            Assert.AreEqual(48.0, actual1);
+            object actual2 = XLWorkbook.EvaluateExpr("FactDouble(7)");
+            Assert.AreEqual(105.0, actual2);
         }
 
         [TestCase(0, 1L)]
@@ -999,12 +1057,192 @@ namespace ClosedXML.Tests.Excel.CalcEngine
             Assert.AreEqual(expectedResult, actual, tolerance);
         }
 
+        [Test]
+        public void Gcd()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Gcd(24, 36)");
+            Assert.AreEqual(12, actual);
+
+            object actual1 = XLWorkbook.EvaluateExpr("Gcd(5, 0)");
+            Assert.AreEqual(5, actual1);
+
+            object actual2 = XLWorkbook.EvaluateExpr("Gcd(0, 5)");
+            Assert.AreEqual(5, actual2);
+
+            object actual3 = XLWorkbook.EvaluateExpr("Gcd(240, 360, 30)");
+            Assert.AreEqual(30, actual3);
+        }
+
         [TestCase(8.9, 8)]
         [TestCase(-8.9, -9)]
         public void Int(double input, double expected)
         {
             var actual = XLWorkbook.EvaluateExpr(string.Format(@"INT({0})", input.ToString(CultureInfo.InvariantCulture)));
             Assert.AreEqual(expected, actual);
+        }
+
+        [Test]
+        public void Lcm()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Lcm(24, 36)");
+            Assert.AreEqual(72, actual);
+
+            object actual1 = XLWorkbook.EvaluateExpr("Lcm(5, 0)");
+            Assert.AreEqual(0, actual1);
+
+            object actual2 = XLWorkbook.EvaluateExpr("Lcm(0, 5)");
+            Assert.AreEqual(0, actual2);
+
+            object actual3 = XLWorkbook.EvaluateExpr("Lcm(240, 360, 30)");
+            Assert.AreEqual(720, actual3);
+        }
+
+        [Test]
+        public void MDeterm()
+        {
+            IXLWorksheet ws = new XLWorkbook().AddWorksheet("Sheet1");
+            ws.Cell("A1").SetValue(2).CellRight().SetValue(4);
+            ws.Cell("A2").SetValue(3).CellRight().SetValue(5);
+
+            Object actual;
+
+            ws.Cell("A5").FormulaA1 = "MDeterm(A1:B2)";
+            actual = ws.Cell("A5").Value;
+
+            Assert.IsTrue(XLHelper.AreEqual(-2.0, (double)actual));
+
+            ws.Cell("A6").FormulaA1 = "Sum(A5)";
+            actual = ws.Cell("A6").Value;
+
+            Assert.IsTrue(XLHelper.AreEqual(-2.0, (double)actual));
+
+            ws.Cell("A7").FormulaA1 = "Sum(MDeterm(A1:B2))";
+            actual = ws.Cell("A7").Value;
+
+            Assert.IsTrue(XLHelper.AreEqual(-2.0, (double)actual));
+        }
+
+        [Test]
+        public void MInverse()
+        {
+            IXLWorksheet ws = new XLWorkbook().AddWorksheet("Sheet1");
+            ws.Cell("A1").SetValue(1).CellRight().SetValue(2).CellRight().SetValue(1);
+            ws.Cell("A2").SetValue(3).CellRight().SetValue(4).CellRight().SetValue(-1);
+            ws.Cell("A3").SetValue(0).CellRight().SetValue(2).CellRight().SetValue(0);
+
+            Object actual;
+
+            ws.Cell("A5").FormulaA1 = "MInverse(A1:C3)";
+            actual = ws.Cell("A5").Value;
+
+            Assert.IsTrue(XLHelper.AreEqual(0.25, (double)actual));
+
+            ws.Cell("A6").FormulaA1 = "Sum(A5)";
+            actual = ws.Cell("A6").Value;
+
+            Assert.IsTrue(XLHelper.AreEqual(0.25, (double)actual));
+
+            ws.Cell("A7").FormulaA1 = "Sum(MInverse(A1:C3))";
+            actual = ws.Cell("A7").Value;
+
+            Assert.IsTrue(XLHelper.AreEqual(0.5, (double)actual));
+        }
+
+        [Test]
+        public void MMult()
+        {
+            IXLWorksheet ws = new XLWorkbook().AddWorksheet("Sheet1");
+            ws.Cell("A1").SetValue(2).CellRight().SetValue(4);
+            ws.Cell("A2").SetValue(3).CellRight().SetValue(5);
+            ws.Cell("A3").SetValue(2).CellRight().SetValue(4);
+            ws.Cell("A4").SetValue(3).CellRight().SetValue(5);
+
+            Object actual;
+
+            ws.Cell("A5").FormulaA1 = "MMult(A1:B2, A3:B4)";
+            actual = ws.Cell("A5").Value;
+
+            Assert.AreEqual(16.0, actual);
+
+            ws.Cell("A6").FormulaA1 = "Sum(A5)";
+            actual = ws.Cell("A6").Value;
+
+            Assert.AreEqual(16.0, actual);
+
+            ws.Cell("A7").FormulaA1 = "Sum(MMult(A1:B2, A3:B4))";
+            actual = ws.Cell("A7").Value;
+
+            Assert.AreEqual(102.0, actual);
+        }
+
+        [Test]
+        public void MMult_HandlesNonSquareMatrices()
+        {
+            IXLWorksheet ws = new XLWorkbook().AddWorksheet("Sheet1");
+
+            // 2x3
+            ws.Cell("A1").SetValue(1).CellRight().SetValue(3).CellRight().SetValue(5);
+            ws.Cell("A2").SetValue(2).CellRight().SetValue(4).CellRight().SetValue(6);
+
+            // 3x4
+            ws.Cell("A3").SetValue(10).CellRight().SetValue(13).CellRight().SetValue(16).CellRight().SetValue(19);
+            ws.Cell("A4").SetValue(11).CellRight().SetValue(14).CellRight().SetValue(17).CellRight().SetValue(20);
+            ws.Cell("A5").SetValue(12).CellRight().SetValue(15).CellRight().SetValue(18).CellRight().SetValue(21);
+
+            Object actual;
+
+            // 2x4 output expected:
+            // 103, 130, 157, 184
+            // 136, 172, 208, 244
+            ws.Cell("A6").FormulaA1 = "MMult(A1:C2, A3:D5)";
+
+            actual = ws.Cell("A6").Value;
+            Assert.AreEqual(103.0, actual);
+
+            ws.Cell("A7").FormulaA1 = "Sum(MMult(A1:C2, A3:D5))";
+            actual = ws.Cell("A7").Value;
+
+            Assert.AreEqual(1334, actual);
+        }
+
+        [TestCase("A2:C2", "A3:C3")] // 1x3 and 1x3
+        [TestCase("A2:C4", "A5:C5")] // 3x3 and 1x3
+        [TestCase("A2:C5", "A6:D6")] // 3x4 and 1x4
+        public void MMult_ThrowsWhenArray1RowsNotEqualToArray2Cols(string array1Range, string array2Range)
+        {
+            IXLWorksheet ws = new XLWorkbook().AddWorksheet("Sheet1");
+
+            ws.Cells($"{array1Range}").Value = 1.0;
+            ws.Cells($"{array2Range}").Value = 1.0;
+
+            ws.Cell("A1").FormulaA1 = $"MMULT({array1Range},{array2Range})";
+
+            var error = Assert.Throws<CellValueException>(() => { var _ = ws.Cell("A1").Value; });
+
+            Assert.AreEqual("The number of columns in array1 is different from the number of rows in array2.", error.Message);
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("Text")]
+        public void MMult_ThrowsWhenCellsContainInvalidInput(object invalidInput)
+        {
+            IXLWorksheet ws = new XLWorkbook().AddWorksheet("Sheet1");
+
+            // 2x3
+            ws.Cell("A1").SetValue(1).CellRight().SetValue(3).CellRight().SetValue(invalidInput);
+            ws.Cell("A2").SetValue(2).CellRight().SetValue(4).CellRight().SetValue(6);
+
+            // 3x4
+            ws.Cell("A3").SetValue(10).CellRight().SetValue(13).CellRight().SetValue(16).CellRight().SetValue(19);
+            ws.Cell("A4").SetValue(11).CellRight().SetValue(14).CellRight().SetValue(17).CellRight().SetValue(20);
+            ws.Cell("A5").SetValue(12).CellRight().SetValue(15).CellRight().SetValue(18).CellRight().SetValue(21);
+
+            ws.Cell("A6").FormulaA1 = $"MMULT(A1:C2,A3:D4)";
+
+            var error = Assert.Throws<CellValueException>(() => { var _ = ws.Cell("A6").Value; });
+
+            Assert.AreEqual("Cells are empty or contain text.", error.Message);
         }
 
         [Test]
@@ -1064,14 +1302,158 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         [DefaultFloatingPointTolerance(1e-12)]
         public double MRound(double number, double multiple)
         {
-            return (double)XLWorkbook.EvaluateExpr($"MROUND({number}, {multiple})");
+            return (double)XLWorkbook.EvaluateExpr(string.Format(CultureInfo.InvariantCulture, "MROUND({0}, {1})", number, multiple));
         }
 
         [TestCase(123456.123, -10)]
         [TestCase(-123456.123, 5)]
         public void MRoundExceptions(double number, double multiple)
         {
-            Assert.Throws<NumberException>(() => XLWorkbook.EvaluateExpr($"MROUND({number}, {multiple})"));
+            Assert.Throws<NumberException>(() => XLWorkbook.EvaluateExpr(string.Format(CultureInfo.InvariantCulture, "MROUND({0}, {1})", number, multiple)));
+        }
+
+        [Test]
+        public void Multinomial()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Multinomial(2,3,4)");
+            Assert.AreEqual(1260.0, actual);
+        }
+
+        [Test]
+        public void Odd()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Odd(1.5)");
+            Assert.AreEqual(3, actual);
+
+            object actual1 = XLWorkbook.EvaluateExpr("Odd(3)");
+            Assert.AreEqual(3, actual1);
+
+            object actual2 = XLWorkbook.EvaluateExpr("Odd(2)");
+            Assert.AreEqual(3, actual2);
+
+            object actual3 = XLWorkbook.EvaluateExpr("Odd(-1)");
+            Assert.AreEqual(-1, actual3);
+
+            object actual4 = XLWorkbook.EvaluateExpr("Odd(-2)");
+            Assert.AreEqual(-3, actual4);
+
+            actual = XLWorkbook.EvaluateExpr("Odd(0)");
+            Assert.AreEqual(1, actual);
+        }
+
+        [Test]
+        public void Product()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Product(2,3,4)");
+            Assert.AreEqual(24.0, actual);
+        }
+
+        [Test]
+        public void Quotient()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Quotient(5,2)");
+            Assert.AreEqual(2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Quotient(4.5,3.1)");
+            Assert.AreEqual(1, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Quotient(-10,3)");
+            Assert.AreEqual(-3, actual);
+        }
+
+        [Test]
+        public void Radians()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Radians(270)");
+            Assert.IsTrue(Math.Abs(4.71238898038469 - (double)actual) < XLHelper.Epsilon);
+        }
+
+        [Test]
+        public void Roman()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Roman(3046, 1)");
+            Assert.AreEqual("MMMXLVI", actual);
+
+            actual = XLWorkbook.EvaluateExpr("Roman(270)");
+            Assert.AreEqual("CCLXX", actual);
+
+            actual = XLWorkbook.EvaluateExpr("Roman(3999, true)");
+            Assert.AreEqual("MMMCMXCIX", actual);
+        }
+
+        [Test]
+        public void Round()
+        {
+            object actual = XLWorkbook.EvaluateExpr("Round(2.15, 1)");
+            Assert.AreEqual(2.2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Round(2.149, 1)");
+            Assert.AreEqual(2.1, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Round(-1.475, 2)");
+            Assert.AreEqual(-1.48, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Round(21.5, -1)");
+            Assert.AreEqual(20.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Round(626.3, -3)");
+            Assert.AreEqual(1000.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Round(1.98, -1)");
+            Assert.AreEqual(0.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("Round(-50.55, -2)");
+            Assert.AreEqual(-100.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("ROUND(59 * 0.535, 2)"); // (59 * 0.535) = 31.565
+            Assert.AreEqual(31.57, actual);
+
+            actual = XLWorkbook.EvaluateExpr("ROUND(59 * -0.535, 2)"); // (59 * -0.535) = -31.565
+            Assert.AreEqual(-31.57, actual);
+        }
+
+        [Test]
+        public void RoundDown()
+        {
+            object actual = XLWorkbook.EvaluateExpr("RoundDown(3.2, 0)");
+            Assert.AreEqual(3.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundDown(76.9, 0)");
+            Assert.AreEqual(76.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundDown(3.14159, 3)");
+            Assert.AreEqual(3.141, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundDown(-3.14159, 1)");
+            Assert.AreEqual(-3.1, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundDown(31415.92654, -2)");
+            Assert.AreEqual(31400.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundDown(0, 3)");
+            Assert.AreEqual(0.0, actual);
+        }
+
+        [Test]
+        public void RoundUp()
+        {
+            object actual = XLWorkbook.EvaluateExpr("RoundUp(3.2, 0)");
+            Assert.AreEqual(4.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundUp(76.9, 0)");
+            Assert.AreEqual(77.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundUp(3.14159, 3)");
+            Assert.AreEqual(3.142, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundUp(-3.14159, 1)");
+            Assert.AreEqual(-3.2, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundUp(31415.92654, -2)");
+            Assert.AreEqual(31500.0, actual);
+
+            actual = XLWorkbook.EvaluateExpr("RoundUp(0, 3)");
+            Assert.AreEqual(0.0, actual);
         }
 
         [TestCase(0, 1)]
@@ -1161,6 +1543,250 @@ namespace ClosedXML.Tests.Excel.CalcEngine
                     @"SECH({0})",
                     (-input).ToString(CultureInfo.InvariantCulture)));
             Assert.AreEqual(expectedOutput, resultForNegative, 0.00001);
+        }
+
+        [Test]
+        public void SeriesSum()
+        {
+            object actual = XLWorkbook.EvaluateExpr("SERIESSUM(2,3,4,5)");
+            Assert.AreEqual(40.0, actual);
+
+            var wb = new XLWorkbook();
+            IXLWorksheet ws = wb.AddWorksheet("Sheet1");
+            ws.Cell("A2").FormulaA1 = "PI()/4";
+            ws.Cell("A3").Value = 1;
+            ws.Cell("A4").FormulaA1 = "-1/FACT(2)";
+            ws.Cell("A5").FormulaA1 = "1/FACT(4)";
+            ws.Cell("A6").FormulaA1 = "-1/FACT(6)";
+
+            actual = ws.Evaluate("SERIESSUM(A2,0,2,A3:A6)");
+            Assert.IsTrue(Math.Abs(0.70710321482284566 - (double)actual) < XLHelper.Epsilon);
+        }
+
+        [Test]
+        public void SqrtPi()
+        {
+            object actual = XLWorkbook.EvaluateExpr("SqrtPi(1)");
+            Assert.IsTrue(Math.Abs(1.7724538509055159 - (double)actual) < XLHelper.Epsilon);
+
+            actual = XLWorkbook.EvaluateExpr("SqrtPi(2)");
+            Assert.IsTrue(Math.Abs(2.5066282746310002 - (double)actual) < XLHelper.Epsilon);
+        }
+
+        [Test]
+        public void SubtotalAverage()
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet();
+            ws.Cell("A1").Value = 2;
+            ws.Cell("A2").Value = 3;
+            ws.Cell("A3").Value = "A";
+
+            object actual = ws.Evaluate("SUBTOTAL(1,A1,A2)");
+            Assert.AreEqual(2.5, actual);
+
+            actual = ws.Evaluate(@"SUBTOTAL(1,A1,A2,A3)");
+            Assert.AreEqual(2.5, actual);
+        }
+
+        [Test]
+        public void SubtotalCalc()
+        {
+            var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet();
+            ws.NamedRanges.Add("subtotalrange", "A37:A38");
+
+            ws.Cell("A1").Value = 2;
+            ws.Cell("A2").Value = 4;
+            ws.Cell("A3").FormulaA1 = "SUBTOTAL(9, A1:A2)"; // simple add subtotal
+            ws.Cell("A4").Value = 8;
+            ws.Cell("A5").Value = 16;
+            ws.Cell("A6").FormulaA1 = "SUBTOTAL(9, A4:A5)"; // simple add subtotal
+            ws.Cell("A7").Value = 32;
+            ws.Cell("A8").Value = 64;
+            ws.Cell("A9").FormulaA1 = "SUM(A7:A8)"; // func but not subtotal
+            ws.Cell("A10").Value = 128;
+            ws.Cell("A11").Value = 256;
+            ws.Cell("A12").FormulaA1 = "SUBTOTAL(1, A10:A11)"; // simple avg subtotal
+            ws.Cell("A13").Value = 512;
+            ws.Cell("A14").FormulaA1 = "SUBTOTAL(9, A1:A13)"; // subtotals in range
+            ws.Cell("A15").Value = 1024;
+            ws.Cell("A16").Value = 2048;
+            ws.Cell("A17").FormulaA1 = "42 + SUBTOTAL(9, A15:A16)"; // simple add subtotal in formula
+            ws.Cell("A18").Value = 4096;
+            ws.Cell("A19").FormulaA1 = "SUBTOTAL(9, A15:A18)"; // subtotals in range
+            ws.Cell("A20").Value = 8192;
+            ws.Cell("A21").Value = 16384;
+            ws.Cell("A22").FormulaA1 = @"32768 * SEARCH(""SUBTOTAL(9, A1:A2)"", A28)"; // subtotal literal in formula
+            ws.Cell("A23").FormulaA1 = "SUBTOTAL(9, A20:A22)"; // subtotal literal in formula in range
+            ws.Cell("A24").Value = 65536;
+            ws.Cell("A25").FormulaA1 = "A23"; // link to subtotal
+            ws.Cell("A26").FormulaA1 = "PRODUCT(SUBTOTAL(9, A24:A25), 2)"; // subtotal as parameter in func
+            ws.Cell("A27").Value = 131072;
+            ws.Cell("A28").Value = "SUBTOTAL(9, A1:A2)"; // subtotal literal
+            ws.Cell("A29").FormulaA1 = "SUBTOTAL(9, A27:A28)"; // subtotal literal in range
+            ws.Cell("A30").FormulaA1 = "SUBTOTAL(9, A31:A32)"; // simple add subtotal backward
+            ws.Cell("A31").Value = 262144;
+            ws.Cell("A32").Value = 524288;
+            ws.Cell("A33").FormulaA1 = "SUBTOTAL(9, A20:A32)"; // subtotals in range
+            ws.Cell("A34").FormulaA1 = @"SUBTOTAL(VALUE(""9""), A1:A33, A35:A41)"; // func as parameter in subtotal and many ranges
+            ws.Cell("A35").Value = 1048576;
+            ws.Cell("A36").FormulaA1 = "SUBTOTAL(9, A31:A32, A35)"; // many ranges
+            ws.Cell("A37").Value = 2097152;
+            ws.Cell("A38").Value = 4194304;
+            ws.Cell("A39").FormulaA1 = "SUBTOTAL(3*3, subtotalrange)"; // formula as parameter in subtotal and named range
+            ws.Cell("A40").Value = 8388608;
+            ws.Cell("A41").FormulaA1 = "PRODUCT(SUBTOTAL(A4+1, A35:A40), 2)"; // formula with link as parameter in subtotal
+            ws.Cell("A42").FormulaA1 = "PRODUCT(SUBTOTAL(A4+1, A35:A40), 2) + SUBTOTAL(A4+1, A35:A40)"; // two subtotals in one formula
+
+            Assert.AreEqual(6, ws.Cell("A3").Value);
+            Assert.AreEqual(24, ws.Cell("A6").Value);
+            Assert.AreEqual(192, ws.Cell("A12").Value);
+            Assert.AreEqual(1118, ws.Cell("A14").Value);
+            Assert.AreEqual(3114, ws.Cell("A17").Value);
+            Assert.AreEqual(7168, ws.Cell("A19").Value);
+            Assert.AreEqual(57344, ws.Cell("A23").Value);
+            Assert.AreEqual(245760, ws.Cell("A26").Value);
+            Assert.AreEqual(131072, ws.Cell("A29").Value);
+            Assert.AreEqual(786432, ws.Cell("A30").Value);
+            Assert.AreEqual(1097728, ws.Cell("A33").Value);
+            Assert.AreEqual(16834654, ws.Cell("A34").Value);
+            Assert.AreEqual(1835008, ws.Cell("A36").Value);
+            Assert.AreEqual(6291456, ws.Cell("A39").Value);
+            Assert.AreEqual(31457280, ws.Cell("A41").Value);
+            Assert.AreEqual(47185920, ws.Cell("A42").Value);
+        }
+
+        [Test]
+        public void SubtotalCount()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate("SUBTOTAL(2,A1:A2)");
+            Assert.AreEqual(2, actual);
+
+            actual = ws.Evaluate(@"SUBTOTAL(2,A2:A3)");
+            Assert.AreEqual(1, actual);
+        }
+
+        [Test]
+        public void SubtotalCountA()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "");
+
+            var actual = ws.Evaluate("SUBTOTAL(3,A1,A2)");
+            Assert.AreEqual(2.0, actual);
+
+            actual = ws.Evaluate(@"SUBTOTAL(3,A3,A2)");
+            Assert.AreEqual(1.0, actual);
+        }
+
+        [Test]
+        public void SubtotalMax()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"SUBTOTAL(4,A1:A3)");
+            Assert.AreEqual(3.0, actual);
+        }
+
+        [Test]
+        public void SubtotalMin()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"SUBTOTAL(5,A1:A3)");
+            Assert.AreEqual(2.0, actual);
+        }
+
+        [Test]
+        public void SubtotalProduct()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"Subtotal(6,A1,A2,A3)");
+            Assert.AreEqual(6.0, actual);
+        }
+
+        [Test]
+        public void SubtotalStDev()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"SUBTOTAL(7,A1:A3)");
+            Assert.IsTrue(Math.Abs(0.70710678118654757 - (double)actual) < XLHelper.Epsilon);
+        }
+
+        [Test]
+        public void SubtotalStDevP()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"SUBTOTAL(8,A1:A3)");
+            Assert.AreEqual(0.5, actual);
+        }
+
+        [Test]
+        public void SubtotalSum()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"SUBTOTAL(9,A1:A3)");
+            Assert.AreEqual(5.0, actual);
+        }
+
+        [Test]
+        public void SubtotalVar()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 5, 4, "A", 8, 5);
+
+            var actual = ws.Evaluate(@"SUBTOTAL(10,A1:A5)");
+            Assert.AreEqual(3, actual);
+        }
+
+        [Test]
+        public void SubtotalVarP()
+        {
+            using var wb = new XLWorkbook();
+            var ws = AddWorksheetWithCellValues(wb, 2, 3, "A");
+
+            var actual = ws.Evaluate(@"SUBTOTAL(11,A1:A3)");
+            Assert.AreEqual(0.25, actual);
+        }
+
+        [Test]
+        public void Sum()
+        {
+            IXLCell cell = new XLWorkbook().AddWorksheet("Sheet1").FirstCell();
+            IXLCell fCell = cell.SetValue(1).CellBelow().SetValue(2).CellBelow();
+            fCell.FormulaA1 = "sum(A1:A2)";
+
+            Assert.AreEqual(3.0, fCell.Value);
+        }
+
+        [Test]
+        public void SumDateTimeAndNumber()
+        {
+            using (var wb = new XLWorkbook())
+            {
+                var ws = wb.AddWorksheet("Sheet1");
+                ws.Cell("A1").Value = 1;
+                ws.Cell("A2").Value = new DateTime(2018, 1, 1);
+                Assert.AreEqual(43102, ws.Evaluate("SUM(A1:A2)"));
+
+                ws.Cell("A1").Value = 2;
+                ws.Cell("A2").FormulaA1 = "DATE(2018,1,1)";
+                Assert.AreEqual(43103, ws.Evaluate("SUM(A1:A2)"));
+            }
         }
 
         /// <summary>
@@ -1450,6 +2076,15 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         }
 
         [Test]
+        public void SumSq()
+        {
+            Object actual;
+
+            actual = XLWorkbook.EvaluateExpr(@"SumSq(3,4)");
+            Assert.AreEqual(25.0, actual);
+        }
+
+        [Test]
         public void Trunc()
         {
             var input = 27.64799257;
@@ -1466,6 +2101,15 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         {
             var actual = (double)XLWorkbook.EvaluateExpr($"TRUNC({input.ToString(CultureInfo.InvariantCulture)}, {digits})");
             Assert.AreEqual(expectedResult, actual);
+        }
+
+        private static IXLWorksheet AddWorksheetWithCellValues(XLWorkbook wb, params object[] values)
+        {
+            var ws = wb.AddWorksheet();
+            for (var row = 1; row <= values.Length; ++row)
+                ws.Cell(row, 1).Value = values[row - 1];
+
+            return ws;
         }
     }
 }

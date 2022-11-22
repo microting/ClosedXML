@@ -1,34 +1,33 @@
 // Keep this file CodeMaid organised and cleaned
 using ClosedXML.Excel;
+using ClosedXML.Excel.CalcEngine;
 using ClosedXML.Excel.CalcEngine.Exceptions;
 using NUnit.Framework;
 using System;
-using System.Linq;
 
 namespace ClosedXML.Tests.Excel.CalcEngine
 {
     [TestFixture]
+    [SetCulture("en-US")]
     public class LookupTests
     {
-        private XLWorkbook workbook;
+        private IXLWorksheet ws;
 
         #region Setup and teardown
 
         [OneTimeTearDown]
         public void Dispose()
         {
-            workbook.Dispose();
+            ws.Workbook.Dispose();
         }
 
         [SetUp]
         public void Init()
         {
-            // Make sure tests run on a deterministic culture
-            System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-US");
-            workbook = SetupWorkbook();
+            ws = SetupWorkbook();
         }
 
-        private XLWorkbook SetupWorkbook()
+        private IXLWorksheet SetupWorkbook()
         {
             var wb = new XLWorkbook();
             var ws = wb.AddWorksheet("Data");
@@ -83,38 +82,78 @@ namespace ClosedXML.Tests.Excel.CalcEngine
                 .CellRight()
                 .InsertTable(data);
 
-            return wb;
+            return ws;
         }
 
         #endregion Setup and teardown
 
         [Test]
+        public void Column()
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("Data");
+            wb.AddWorksheet("Other");
+
+            // If no argument, function uses the address of the cell that contains the formula
+            Assert.AreEqual(4, ws.Cell("D1").SetFormulaA1("COLUMN()").Value);
+
+            // With a reference, it returns the column number
+            Assert.AreEqual(26, ws.Cell("A1").SetFormulaA1("COLUMN(Z14)").Value);
+
+            // If a single column is used, return the column number 
+            Assert.AreEqual(3, ws.Cell("A2").SetFormulaA1("COLUMN(C:C)").Value);
+
+            // Return a horizontal array for multiple columns. Use SUM to verify content of an array since ROWS/COLUMNS don't work yet.
+            Assert.AreEqual(3 + 4, ws.Cell("A3").SetFormulaA1("SUM(COLUMN(C:D))").Value);
+            Assert.AreEqual(5 + 6 + 7, ws.Cell("A3").SetFormulaA1("SUM(COLUMN(E1:G10))").Value);
+
+            // Not contiguous range (multiple areas) returns #REF!
+            Assert.AreEqual(XLError.CellReference, ws.Cell("A4").SetFormulaA1("COLUMN((D5:G10,I8:K12))").Value);
+
+            // Invalid references return #REF!
+            Assert.AreEqual(XLError.CellReference, ws.Cell("A5").SetFormulaA1("COLUMN(NonExistent!F10)").Value);
+
+            // Return column number even for different worksheet
+            Assert.AreEqual(5, ws.Cell("A6").SetFormulaA1("COLUMN(Other!E7)").Value);
+
+            // Unexpected types return error
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A8").SetFormulaA1("COLUMN(TRUE)").Value);
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A7").SetFormulaA1("COLUMN(5)").Value);
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A8").SetFormulaA1("COLUMN(\"C5\")").Value);
+            Assert.AreEqual(XLError.DivisionByZero, ws.Cell("A9").SetFormulaA1("COLUMN(#DIV/0!)").Value);
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A10").SetFormulaA1("COLUMN(\"C5\")").Value);
+        }
+
+        [Test]
         public void Hlookup()
         {
             // Range lookup false
-            var value = workbook.Evaluate(@"=HLOOKUP(""Total"",Data!$B$2:$I$71,4,FALSE)");
+            var value = ws.Evaluate(@"=HLOOKUP(""Total"",Data!$B$2:$I$71,4,FALSE)");
             Assert.AreEqual(179.64, value);
         }
 
         [Test]
         public void Hyperlink()
         {
-            XLHyperlink hl;
-            hl = XLWorkbook.EvaluateExpr("HYPERLINK(\"http://github.com/ClosedXML/ClosedXML\")") as XLHyperlink;
-            Assert.IsNotNull(hl);
-            Assert.AreEqual("http://github.com/ClosedXML/ClosedXML", hl.ExternalAddress.ToString());
-            Assert.AreEqual(string.Empty, hl.Tooltip);
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet();
 
-            hl = XLWorkbook.EvaluateExpr("HYPERLINK(\"mailto:jsmith@github.com\", \"jsmith@github.com\")") as XLHyperlink;
-            Assert.IsNotNull(hl);
-            Assert.AreEqual("mailto:jsmith@github.com", hl.ExternalAddress.ToString());
-            Assert.AreEqual("jsmith@github.com", hl.Tooltip);
+            var cell = ws.Cell("B3");
+            cell.FormulaA1 = "HYPERLINK(\"http://github.com/ClosedXML/ClosedXML\")";
+            Assert.AreEqual("http://github.com/ClosedXML/ClosedXML", cell.Value);
+            Assert.True(cell.HasHyperlink);
+            Assert.AreEqual("http://github.com/ClosedXML/ClosedXML", cell.GetHyperlink().ExternalAddress.ToString());
+
+            cell = ws.Cell("B4");
+            cell.FormulaA1 = "HYPERLINK(\"mailto:jsmith@github.com\", \"jsmith@github.com\")";
+            Assert.AreEqual("jsmith@github.com", cell.Value);
+            Assert.True(cell.HasHyperlink);
+            Assert.AreEqual("mailto:jsmith@github.com", cell.GetHyperlink().ExternalAddress.ToString());
         }
 
         [Test]
         public void Index()
         {
-            var ws = workbook.Worksheets.First();
             Assert.AreEqual("Kivell", ws.Evaluate(@"=INDEX(B2:J12, 3, 4)"));
 
             // We don't support optional parameter fully here yet.
@@ -134,7 +173,6 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         [Test]
         public void Index_Exceptions()
         {
-            var ws = workbook.Worksheets.First();
             Assert.Throws<CellReferenceException>(() => ws.Evaluate(@"INDEX(B2:I10, 20, 1)"));
             Assert.Throws<CellReferenceException>(() => ws.Evaluate(@"INDEX(B2:I10, 1, 10)"));
             Assert.Throws<CellReferenceException>(() => ws.Evaluate(@"INDEX(B2:I2, 10)"));
@@ -148,8 +186,6 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         [Test]
         public void Match()
         {
-            var ws = workbook.Worksheets.First();
-
             Object value;
             value = ws.Evaluate(@"=MATCH(""Rep"", B2:I2, 0)");
             Assert.AreEqual(4, value);
@@ -197,54 +233,89 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         [Test]
         public void Match_Exceptions()
         {
-            var ws = workbook.Worksheets.First();
             Assert.Throws<CellValueException>(() => ws.Evaluate(@"=MATCH(""Rep"", B2:I5)"));
             Assert.Throws<NoValueAvailableException>(() => ws.Evaluate(@"=MATCH(""Dummy"", B2:I2, 0)"));
             Assert.Throws<NoValueAvailableException>(() => ws.Evaluate(@"=MATCH(4.5,B3:B45,-1)"));
         }
 
         [Test]
+        public void Row()
+        {
+            using var wb = new XLWorkbook();
+            var ws = wb.AddWorksheet("Data");
+            wb.AddWorksheet("Other");
+
+            // If no argument, function uses the address of the cell that contains the formula
+            Assert.AreEqual(60, ws.Cell("M60").SetFormulaA1("ROW()").Value);
+
+            // With a reference, it returns the row number
+            Assert.AreEqual(12, ws.Cell("A1").SetFormulaA1("ROW(C12)").Value);
+
+            // If a full row reference to a single row is used, return the row number 
+            Assert.AreEqual(40, ws.Cell("A2").SetFormulaA1("ROW(40:40)").Value);
+
+            // Return a vertical array for multiple rows. Use SUM to verify content of an array since ROWS/COLUMNS don't work yet.
+            Assert.AreEqual(4 + 5 + 6 + 7, ws.Cell("A3").SetFormulaA1("SUM(ROW(4:7))").Value);
+            Assert.AreEqual(2 + 3 + 4, ws.Cell("A4").SetFormulaA1("SUM(ROW(C2:Z4))").Value);
+
+            // Not contiguous range (multiple areas) returns #REF!
+            Assert.AreEqual(XLError.CellReference, ws.Cell("A5").SetFormulaA1("ROW((D5:G10,I8:K12))").Value);
+
+            // Invalid references return #REF!
+            Assert.AreEqual(XLError.CellReference, ws.Cell("A6").SetFormulaA1("ROW(NonExistent!F10)").Value);
+
+            // Return row number even for different worksheet
+            Assert.AreEqual(14, ws.Cell("A7").SetFormulaA1("ROW(Other!E14)").Value);
+
+            // Unexpected types return error
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A8").SetFormulaA1("ROW(IF(TRUE,TRUE))").Value);
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A9").SetFormulaA1("ROW(IF(TRUE,5))").Value);
+            Assert.AreEqual(XLError.IncompatibleValue, ws.Cell("A10").SetFormulaA1("ROW(IF(TRUE,\"G15\"))").Value);
+            Assert.AreEqual(XLError.DivisionByZero, ws.Cell("A11").SetFormulaA1("ROW(#DIV/0!)").Value);
+        }
+
+        [Test]
         public void Vlookup()
         {
             // Range lookup false
-            var value = workbook.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,3,FALSE)");
+            var value = ws.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,3,FALSE)");
             Assert.AreEqual("Central", value);
 
-            value = workbook.Evaluate("=VLOOKUP(DATE(2015,5,22),Data!C:I,7,FALSE)");
+            value = ws.Evaluate("=VLOOKUP(DATE(2015,5,22),Data!C:I,7,FALSE)");
             Assert.AreEqual(63.68, value);
 
-            value = workbook.Evaluate(@"=VLOOKUP(""Central"",Data!D:E,2,FALSE)");
+            value = ws.Evaluate(@"=VLOOKUP(""Central"",Data!D:E,2,FALSE)");
             Assert.AreEqual("Kivell", value);
 
             // Case insensitive lookup
-            value = workbook.Evaluate(@"=VLOOKUP(""central"",Data!D:E,2,FALSE)");
+            value = ws.Evaluate(@"=VLOOKUP(""central"",Data!D:E,2,FALSE)");
             Assert.AreEqual("Kivell", value);
 
             // Range lookup true
-            value = workbook.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,8,TRUE)");
+            value = ws.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,8,TRUE)");
             Assert.AreEqual(179.64, value);
 
-            value = workbook.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,8)");
+            value = ws.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,8)");
             Assert.AreEqual(179.64, value);
 
-            value = workbook.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,8,)");
+            value = ws.Evaluate("=VLOOKUP(3,Data!$B$2:$I$71,8,)");
             Assert.AreEqual(179.64, value);
 
-            value = workbook.Evaluate("=VLOOKUP(14.5,Data!$B$2:$I$71,8,TRUE)");
+            value = ws.Evaluate("=VLOOKUP(14.5,Data!$B$2:$I$71,8,TRUE)");
             Assert.AreEqual(174.65, value);
 
-            value = workbook.Evaluate("=VLOOKUP(50,Data!$B$2:$I$71,8,TRUE)");
+            value = ws.Evaluate("=VLOOKUP(50,Data!$B$2:$I$71,8,TRUE)");
             Assert.AreEqual(139.72, value);
         }
 
         [Test]
         public void Vlookup_Exceptions()
         {
-            Assert.Throws<NoValueAvailableException>(() => workbook.Evaluate(@"=VLOOKUP("""",Data!$B$2:$I$71,3,FALSE)"));
-            Assert.Throws<NoValueAvailableException>(() => workbook.Evaluate(@"=VLOOKUP(50,Data!$B$2:$I$71,3,FALSE)"));
-            Assert.Throws<NoValueAvailableException>(() => workbook.Evaluate(@"=VLOOKUP(-1,Data!$B$2:$I$71,2,TRUE)"));
+            Assert.Throws<NoValueAvailableException>(() => ws.Evaluate(@"=VLOOKUP("""",Data!$B$2:$I$71,3,FALSE)"));
+            Assert.Throws<NoValueAvailableException>(() => ws.Evaluate(@"=VLOOKUP(50,Data!$B$2:$I$71,3,FALSE)"));
+            Assert.Throws<NoValueAvailableException>(() => ws.Evaluate(@"=VLOOKUP(-1,Data!$B$2:$I$71,2,TRUE)"));
 
-            Assert.Throws<CellReferenceException>(() => workbook.Evaluate(@"=VLOOKUP(20,Data!$B$2:$I$71,9,FALSE)"));
+            Assert.Throws<CellReferenceException>(() => ws.Evaluate(@"=VLOOKUP(20,Data!$B$2:$I$71,9,FALSE)"));
         }
     }
 }

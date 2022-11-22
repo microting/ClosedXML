@@ -1,4 +1,5 @@
 ﻿using ClosedXML.Excel;
+using ClosedXML.Excel.CalcEngine;
 using ClosedXML.Excel.CalcEngine.Exceptions;
 using NUnit.Framework;
 using System;
@@ -26,20 +27,18 @@ namespace ClosedXML.Tests.Excel.CalcEngine
         [Test]
         public void DivisionByZero()
         {
-            Assert.Throws<DivisionByZeroException>(() => XLWorkbook.EvaluateExpr("0/0"));
-            Assert.Throws<DivisionByZeroException>(() => new XLWorkbook().AddWorksheet().Evaluate("0/0"));
+            Assert.AreEqual(XLError.DivisionByZero, XLWorkbook.EvaluateExpr("0/0"));
+            Assert.AreEqual(XLError.DivisionByZero, new XLWorkbook().AddWorksheet().Evaluate("0/0"));
         }
 
         [Test]
         public void InvalidFunction()
         {
             Exception ex;
-            ex = Assert.Throws<NameNotRecognizedException>(() => XLWorkbook.EvaluateExpr("XXX(A1:A2)"));
-            Assert.That(ex.Message, Is.EqualTo("The identifier `XXX` was not recognised."));
+            Assert.AreEqual(XLError.NameNotRecognized, XLWorkbook.EvaluateExpr("XXX(A1:A2)"));
 
             var ws = new XLWorkbook().AddWorksheet();
-            ex = Assert.Throws<NameNotRecognizedException>(() => ws.Evaluate("XXX(A1:A2)"));
-            Assert.That(ex.Message, Is.EqualTo("The identifier `XXX` was not recognised."));
+            Assert.AreEqual(XLError.NameNotRecognized, ws.Evaluate("XXX(A1:A2)"));
         }
 
         [Test]

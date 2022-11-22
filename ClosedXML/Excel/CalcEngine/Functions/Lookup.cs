@@ -3,32 +3,54 @@ using ClosedXML.Excel.CalcEngine.Exceptions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using static ClosedXML.Excel.CalcEngine.Functions.SignatureAdapter;
 
 namespace ClosedXML.Excel.CalcEngine.Functions
 {
     internal static class Lookup
     {
-        public static void Register(CalcEngine ce)
+        public static void Register(FunctionRegistry ce)
         {
             //ce.RegisterFunction("ADDRESS", , Address); // Returns a reference as text to a single cell in a worksheet
             //ce.RegisterFunction("AREAS", , Areas); // Returns the number of areas in a reference
             //ce.RegisterFunction("CHOOSE", , Choose); // Chooses a value from a list of values
-            //ce.RegisterFunction("COLUMN", , Column); // Returns the column number of a reference
+            ce.RegisterFunction("COLUMN", 0, 1, Column, FunctionFlags.Range, AllowRange.All); // Returns the column number of a reference
             //ce.RegisterFunction("COLUMNS", , Columns); // Returns the number of columns in a reference
             //ce.RegisterFunction("FORMULATEXT", , Formulatext); // Returns the formula at the given reference as text
             //ce.RegisterFunction("GETPIVOTDATA", , Getpivotdata); // Returns data stored in a PivotTable report
-            ce.RegisterFunction("HLOOKUP", 3, 4, Hlookup); // Looks in the top row of an array and returns the value of the indicated cell
-            ce.RegisterFunction("HYPERLINK", 1, 2, Hyperlink); // Creates a shortcut or jump that opens a document stored on a network server, an intranet, or the Internet
-            ce.RegisterFunction("INDEX", 2, 4, Index); // Uses an index to choose a value from a reference or array
+            ce.RegisterFunction("HLOOKUP", 3, 4, Hlookup, AllowRange.Only, 1); // Looks in the top row of an array and returns the value of the indicated cell
+            ce.RegisterFunction("HYPERLINK", 1, 2, Adapt(Hyperlink), FunctionFlags.Scalar | FunctionFlags.SideEffect); // Creates a shortcut or jump that opens a document stored on a network server, an intranet, or the Internet
+            ce.RegisterFunction("INDEX", 2, 4, Index, AllowRange.Only, 0, 1); // Uses an index to choose a value from a reference or array
             //ce.RegisterFunction("INDIRECT", , Indirect); // Returns a reference indicated by a text value
             //ce.RegisterFunction("LOOKUP", , Lookup); // Looks up values in a vector or array
-            ce.RegisterFunction("MATCH", 2, 3, Match); // Looks up values in a reference or array
+            ce.RegisterFunction("MATCH", 2, 3, Match, AllowRange.Only, 1); // Looks up values in a reference or array
             //ce.RegisterFunction("OFFSET", , Offset); // Returns a reference offset from a given reference
-            //ce.RegisterFunction("ROW", , Row); // Returns the row number of a reference
+            ce.RegisterFunction("ROW", 0, 1, Row, FunctionFlags.Range, AllowRange.All); // Returns the row number of a reference
             //ce.RegisterFunction("ROWS", , Rows); // Returns the number of rows in a reference
             //ce.RegisterFunction("RTD", , Rtd); // Retrieves real-time data from a program that supports COM automation
             //ce.RegisterFunction("TRANSPOSE", , Transpose); // Returns the transpose of an array
-            ce.RegisterFunction("VLOOKUP", 3, 4, Vlookup); // Looks in the first column of an array and moves across the row to return the value of a cell
+            ce.RegisterFunction("VLOOKUP", 3, 4, Vlookup, AllowRange.Only, 1); // Looks in the first column of an array and moves across the row to return the value of a cell
+        }
+
+        private static AnyValue Column(CalcContext ctx, Span<AnyValue> p)
+        {
+            if (p.Length == 0 || p[0].IsBlank)
+                return ctx.FormulaAddress.ColumnNumber;
+
+            if (!p[0].TryPickArea(out var area, out var error))
+                return error;
+
+            var firstColumn = area.FirstAddress.ColumnNumber;
+            var lastColumn = area.LastAddress.ColumnNumber;
+            if (firstColumn == lastColumn)
+                return firstColumn;
+
+            var span = lastColumn - firstColumn + 1;
+            var array = new ScalarValue[1, span];
+            for (var col = firstColumn; col <= lastColumn; col++)
+                array[0, col - firstColumn] = col;
+
+            return new ConstArray(array);
         }
 
         private static IXLRange ExtractRange(Expression expression)
@@ -85,11 +107,13 @@ namespace ClosedXML.Excel.CalcEngine.Functions
                 .Value;
         }
 
-        private static object Hyperlink(List<Expression> p)
+        private static AnyValue Hyperlink(CalcContext ctx, string linkLocation, ScalarValue? friendlyName)
         {
-            String address = p[0];
-            String toolTip = p.Count == 2 ? p[1] : String.Empty;
-            return new XLHyperlink(address, toolTip);
+            var link = new XLHyperlink(linkLocation);
+            var cell = ctx.Worksheet.Cell(ctx.FormulaAddress);
+            cell.SetHyperlink(link);
+
+            return friendlyName?.ToAnyValue() ?? linkLocation;
         }
 
         private static object Index(List<Expression> p)
@@ -212,6 +236,27 @@ namespace ClosedXML.Excel.CalcEngine.Functions
             var firstCell = range.FirstCell();
 
             return (foundCell.Address.ColumnNumber - firstCell.Address.ColumnNumber + 1) * (foundCell.Address.RowNumber - firstCell.Address.RowNumber + 1);
+        }
+
+        private static AnyValue Row(CalcContext ctx, Span<AnyValue> p)
+        {
+            if (p.Length == 0 || p[0].IsBlank)
+                return ctx.FormulaAddress.RowNumber;
+
+            if (!p[0].TryPickArea(out var area, out var error))
+                return error;
+
+            var firstRow = area.FirstAddress.RowNumber;
+            var lastRow = area.LastAddress.RowNumber;
+            if (firstRow == lastRow)
+                return firstRow;
+
+            var span = lastRow - firstRow + 1;
+            var array = new ScalarValue[span, 1];
+            for (var row = firstRow; row <= lastRow; row++)
+                array[row - firstRow, 0] = row;
+
+            return new ConstArray(array);
         }
 
         private static object Vlookup(List<Expression> p)
