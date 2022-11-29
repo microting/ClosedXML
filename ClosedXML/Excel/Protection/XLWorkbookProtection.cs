@@ -120,9 +120,9 @@ namespace ClosedXML.Excel
         {
             if (IsProtected)
             {
-                password = password ?? "";
+                password = password ?? string.Empty;
 
-                if ("" != PasswordHash && "" == password)
+                if (!string.IsNullOrEmpty(PasswordHash) && string.IsNullOrEmpty(password))
                     throw new InvalidOperationException("The workbook structure is password protected");
 
                 var hash = Utils.CryptographicAlgorithms.GetPasswordHash(this.Algorithm, password, this.Base64EncodedSalt, this.SpinCount);

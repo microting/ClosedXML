@@ -115,8 +115,8 @@ namespace ClosedXML.Excel
             }
             internal set
             {
-                if (value == null)
-                    return;
+                // if (value == null)
+                //     return;
                 _rowNumber = value.RowNumber;
                 _columnNumber = value.ColumnNumber;
                 _fixedRow = value.FixedRow;
@@ -131,7 +131,7 @@ namespace ClosedXML.Excel
                 if (HasRichText)
                     return _richText.ToString();
 
-                return string.Empty == _cellValue ? FormulaA1 : _cellValue;
+                return string.IsNullOrEmpty(_cellValue) ? FormulaA1 : _cellValue;
             }
         }
 
@@ -554,7 +554,7 @@ namespace ClosedXML.Excel
         private Object ParseCellValueFromString(String cellValue, XLDataType dataType, out String error)
         {
             error = "";
-            if ("" == cellValue)
+            if (string.IsNullOrEmpty(cellValue))
                 return "";
 
             if (dataType == XLDataType.Boolean)

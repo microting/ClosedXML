@@ -42,6 +42,7 @@ namespace ClosedXML.Graphics
             SizePx = new Size((int)width, (int)height);
             DpiX = dpiX;
             DpiY = dpiY;
+            SizePhys = default;
         }
 
         public XLPictureInfo(XLPictureFormat format, Size sizePx, Size sizePhys) : this(format, sizePx, sizePhys, 0, 0)

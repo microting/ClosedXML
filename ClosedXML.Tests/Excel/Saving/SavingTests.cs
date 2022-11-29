@@ -255,11 +255,9 @@ namespace ClosedXML.Tests.Excel.Saving
                     // Act
                     TestDelegate saveAs = () =>
                     {
-                        using (var wb = new XLWorkbook())
-                        {
-                            var sheet = wb.Worksheets.Add("TestSheet");
-                            wb.SaveAs(existing.Path);
-                        }
+                        using var wb = new XLWorkbook();
+                        var sheet = wb.Worksheets.Add("TestSheet");
+                        wb.SaveAs(existing.Path);
                     };
 
                     // Assert

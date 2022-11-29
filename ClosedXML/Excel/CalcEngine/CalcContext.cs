@@ -95,7 +95,7 @@ namespace ClosedXML.Excel.CalcEngine
                 bool logical => ScalarValue.From(logical),
                 double number => ScalarValue.From(number),
                 int integer => ScalarValue.From(integer),
-                string text => text == string.Empty && !cell.HasFormula
+                string text => string.IsNullOrEmpty(text) && !cell.HasFormula
                     ? ScalarValue.Blank
                     : ScalarValue.From(text),
                 DateTime date => ScalarValue.From(date.ToOADate()),
