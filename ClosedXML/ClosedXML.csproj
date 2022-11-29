@@ -1,29 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0</TargetFrameworks>
-    <LangVersion>8.0</LangVersion>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Microting.ClosedXML</AssemblyName>
-    <PackageId>ClosedXML</PackageId>
-    <Version>0.95.4</Version>
-    <Authors>Francois Botha, Aleksei Pankratev, Manuel de Leon, Amir Ghezelbash</Authors>
-    <Owners>Francois Botha, Aleksei Pankratev</Owners>
-    <Company />
-    <Product>ClosedXML</Product>
-    <PackageReleaseNotes>See https://github.com/ClosedXML/ClosedXML/releases/tag/$(productVersion)</PackageReleaseNotes>
-    <Description>ClosedXML is a .NET library for reading, manipulating and writing Excel 2007+ (.xlsx, .xlsm) files. It aims to provide an intuitive and user-friendly interface to dealing with the underlying OpenXML API.</Description>
-    <Copyright>MIT</Copyright>
-    <PackageProjectUrl>https://github.com/ClosedXML/ClosedXML</PackageProjectUrl>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <PackageIcon>nuget-logo.png</PackageIcon>
-    <PackageIconUrl>https://raw.githubusercontent.com/ClosedXML/ClosedXML/develop/resources/logo/nuget-logo.png</PackageIconUrl>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <NoWarn>$(NoWarn);NU1605;CS1591</NoWarn>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Configurations>Debug;Release</Configurations>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <SignAssembly>true</SignAssembly>
-    <AssemblyOriginatorKeyFile>..\ClosedXML.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -31,29 +10,10 @@
     <Optimize>true</Optimize>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <PackageReference Include="Fody" Version="6.6.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Janitor.Fody" Version="1.9.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-    <PackageReference Include="System.Drawing.Common" Version="6.0.0" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net40'">
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="WindowsBase" />
-  </ItemGroup>
-
-  <ItemGroup Condition="'$(TargetFramework)' == 'net46'">
-    <PackageReference Include="Fody" Version="6.6.2">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </PackageReference>
-    <PackageReference Include="Janitor.Fody" Version="1.9.0" PrivateAssets="all" />
-    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
-  </ItemGroup>
+  <PropertyGroup>
+    <!-- NU5104 - SixLabors.Fonts is available only as a prerelease -->
+    <NoWarn>$(NoWarn);NU1605;NU5104;CS1591</NoWarn>
+  </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\.editorconfig" Link=".editorconfig" />
@@ -61,11 +21,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="DocumentFormat.OpenXml" Version="2.18.0" />
+    <PackageReference Include="DocumentFormat.OpenXml" Version="2.16.0" />
     <PackageReference Include="ExcelNumberFormat" Version="1.1.0" />
-
-    <!-- SourceLink , see https://github.com/ctaggart/SourceLink -->
-    <PackageReference Include="SourceLink.Copy.PdbFiles" Version="2.8.3" PrivateAssets="All" />
+    <PackageReference Include="Fody" Version="6.3.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Janitor.Fody" Version="1.8.0" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.CSharp" Version="4.7.0" />
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <PackageReference Include="SixLabors.Fonts" Version="1.0.0-beta18" />
+    <PackageReference Include="System.Buffers" Version="4.5.1" />
+    <!-- Pre-6.0.0 System.IO.Packaging has a race condition https://github.com/dotnet/runtime/issues/43012 -->
+    <PackageReference Include="System.IO.Packaging" Version="6.0.0" />
+    <PackageReference Include="System.Memory" Version="4.5.4" />
+    <PackageReference Include="XLParser" Version="1.5.2" />
   </ItemGroup>
 </Project>
